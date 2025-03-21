@@ -36,3 +36,4 @@ __pycache__/
 /compiler/config-IF501.mk
 /compiler/config-wsl-2025.mk
 /compiler/Makefile
+antlr/
