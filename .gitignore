@@ -5,7 +5,6 @@ Thumbs.db
 # === Build artifacts ===
 /compiler/build/
 /compiler/ifcc
-/compiler/ifcc.g4
 
 # === ANTLR generated files ===
 /compiler/generated/
