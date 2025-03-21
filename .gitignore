@@ -1,0 +1,38 @@
+# === OS-specific ===
+.DS_Store
+Thumbs.db
+
+# === Build artifacts ===
+/compiler/build/
+/compiler/ifcc
+/compiler/ifcc.g4
+
+# === ANTLR generated files ===
+/compiler/generated/
+
+# === Output of tests ===
+/ifcc-test-output/
+
+# === Binaries ===
+*.exe
+*.o
+*.out
+*.d
+*.s
+
+# === Editor / IDE ===
+.vscode/
+.idea/
+*.swp
+*~
+
+# === Python cache ===
+__pycache__/
+*.pyc
+*.pyo
+
+# === User config files ===
+/compiler/config.mk
+/compiler/config-IF501.mk
+/compiler/config-wsl-2025.mk
+/compiler/Makefile
