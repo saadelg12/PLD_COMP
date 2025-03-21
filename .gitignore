@@ -10,8 +10,8 @@ Thumbs.db
 # === ANTLR generated files ===
 /compiler/generated/
 
-# === Output of tests ===
 /ifcc-test-output/
+ifcc-test.py
 
 # === Binaries ===
 *.exe
