@@ -13,7 +13,19 @@ else
 endif
 
 
-CC=g++
+UNAME_S := $(shell uname -s)
+ARCH := $(shell uname -m)
+
+ifeq ($(UNAME_S),Darwin)
+  ifeq ($(ARCH),arm64)
+    CC = arch -x86_64 g++
+  else
+    CC = g++
+  endif
+else
+  CC = g++
+endif
+
 CCFLAGS=-g -c -std=c++11 -I$(ANTLRINC) -Wno-attributes # -Wno-defaulted-function-deleted -Wno-unknown-warning-option
 LDFLAGS=-g
 

@@ -38,12 +38,14 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
 }
 
 void SymbolTableVisitor::checkUnusedVariables() {
-    for (const auto& [varName, _] : symbolTable) {
+    for (const auto& entry : symbolTable) {
+        const auto& varName = entry.first;
         if (usedVariables.find(varName) == usedVariables.end()) {
             std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
         }
     }
 }
+
 
 void SymbolTableVisitor::checkHasReturn() {
     if (not hasReturn) {
