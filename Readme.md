@@ -13,7 +13,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 | **Constantes entières et caractères `'a'`** | ⚠️ Partiellement| Constantes (`ConstExpr`), caractères (`CharConstExpr`), mais type char pas encore géré |
 | **Opérations `+`, `-`, `*`** | ✅ Implémenté | `visitAddSub`, `visitMulDiv` avec registres temporaires |
 | **Division et Modulo** | ✅ Implémenté | `idivl`, `cltd`, `%` via `%edx` |
-| **Bitwise `|`, `&`, `^`** | ✅ Implémenté | `visitBitwiseExpr()` |
+| **Bitwise `\|`, `&`, `^`** | ✅ Implémenté | `visitBitwiseExpr()` |
 | **Comparaisons `==`, `!=`, `<`, `>`, `<=`, `>=`** | ✅ Implémenté | `visitCmpExpr()` avec `set*` |
 | **Opérateurs unaires `!`, `-`** | ✅ Implémenté | `NegateExpr`, `NotExpr` |
 | **Déclaration de variables n'importe où** | ✅ Implémenté | Géré dans la grammaire |
@@ -45,7 +45,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 | **Chaînes de caractères (`char[]`)** | ❌ Non implémenté | Pas de gestion des littéraux de chaîne |
 | **Initialisation à la déclaration** | ✅ Implémenté | Géré dans `visitDeclaration()` |
 | **`switch...case`** | ❌ Non implémenté | Pas de règle correspondante |
-| **Opérateurs \|\|, `&&` (paresseux)** | ❌ Non implémenté | Pas encore dans la grammaire |
+| **Opérateurs `\|\|`, `&&` (paresseux)** | ❌ Non implémenté | Pas encore dans la grammaire |
 | **Opérateurs `+=`, `-=`, `++`, `--`** | ❌ Non implémenté | Aucun support syntaxique ou sémantique |
 
 ---
