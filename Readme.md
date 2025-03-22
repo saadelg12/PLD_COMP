@@ -4,7 +4,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 
 ---
 
-### 🟢 Ultra prioritaires --> À finir le 26 MARS 2025
+### 🟢 Ultra prioritaires --> À finir le 26 MARS 2025 (SPRINT 1)
 
 | Fonctionnalité | État | Détails |
 |----------------|------|---------|
@@ -31,7 +31,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 
 ---
 
-### 🟡 Prioritaires --> À FINIR LE 2 AVRIL 2025
+### 🟡 Prioritaires --> À FINIR LE 2 AVRIL 2025 (SPRINT 2)
 
 | Fonctionnalité | État | Détails |
 |----------------|------|---------|
@@ -50,7 +50,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 
 ---
 
-### 🔵 Moins prioritaires --> À FINIR LE 9 AVRIL 2025
+### 🔵 Moins prioritaires --> À FINIR LE 9 AVRIL 2025 (SPRINT 3)
 
 | Fonctionnalité | État | Détails |
 |----------------|------|---------|
