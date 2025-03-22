@@ -14,6 +14,17 @@ import os
 import shutil
 import sys
 import subprocess
+import platform
+import subprocess
+
+def is_macos():
+    return platform.system() == "Darwin"
+
+def gcc_cmd(cmd):
+    if is_macos():
+        return f"arch -x86_64 {cmd}"
+    else:
+        return cmd
 
 def run_command(string, logfile=None, toscreen=False):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
@@ -271,13 +282,12 @@ for jobname in jobs:
     os.chdir(jobname)
     
     ## Reference compiler = GCC
-    gccstatus=run_command("arch -x86_64 gcc -S -o asm-gcc.s input.c", "gcc-compile.txt")
+    gccstatus = run_command(gcc_cmd("gcc -S -o asm-gcc.s input.c"), "gcc-compile.txt")
     if gccstatus == 0:
-        # test-case is a valid program. we should run it
-        gccstatus=run_command("arch -x86_64 gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
-    if gccstatus == 0: # then both compile and link stage went well
-        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt")
-        if args.verbose >=2:
+        gccstatus = run_command(gcc_cmd("gcc -o exe-gcc asm-gcc.s"), "gcc-link.txt")
+    if gccstatus == 0:
+        exegccstatus = run_command("./exe-gcc", "gcc-execute.txt")
+        if args.verbose >= 2:
             dumpfile("gcc-execute.txt")
             
     ## IFCC compiler
@@ -302,7 +312,8 @@ for jobname in jobs:
         continue
     else:
         ## ifcc accepts to compile valid program -> let's link it
-        ldstatus=run_command("arch -x86_64 gcc -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
+        ldstatus = run_command(gcc_cmd("gcc -o exe-ifcc asm-ifcc.s"), "ifcc-link.txt")
+
         if ldstatus:
             print("TEST FAIL (your compiler produces incorrect assembly)")
             all_ok=False
