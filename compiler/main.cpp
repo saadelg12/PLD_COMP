@@ -53,9 +53,9 @@ int main(int argn, const char **argv)
   SymbolTableVisitor symbolTableVisitor;
   symbolTableVisitor.visit(tree);
   symbolTableVisitor.checkUnusedVariables();
-
-  std::map<std::string, int>* symbolTable = symbolTableVisitor.getSymbolTable();
-  CodeGenVisitor codeGenVisitor(symbolTable);
+  symbolTableVisitor.checkHasReturn();
+  
+  CodeGenVisitor codeGenVisitor(symbolTableVisitor.getSymbolTable(), symbolTableVisitor.getStackOffset());
   codeGenVisitor.visit(tree);
 
   return 0;
