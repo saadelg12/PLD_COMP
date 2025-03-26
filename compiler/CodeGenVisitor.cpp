@@ -28,11 +28,11 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx)
 {   
     std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable
-    int offset = (*symbolTable)[varName]; 
+    int offset = currentScope->get(varName);
     if (ctx->expr()) {
         visit(ctx->expr());
         std::cout << "    movl %eax, " << offset << "(%rbp)   # Initialisation de " << varName << "\n"; 
-        }         
+    }         
     
     return 0;
 }
@@ -40,7 +40,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *c
 antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
     std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable assignée
 
-    int offset = (*symbolTable)[varName];  // On suppose que `symbolTable` est déjà valide. On récupére l'offset
+    int offset = currentScope->get(varName);
     
     visit(ctx->expr());  // Visiter l'expression à droite de l'opérateur d'assignation
     std::cout << "    movl %eax, " << offset << "(%rbp)   # Copier la valeur dans " << varName << "\n";  
@@ -56,7 +56,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
-    int offset = (*symbolTable)[varName];
+    int offset = currentScope->get(varName);
 
     std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
     return 0;
@@ -219,7 +219,4 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *c
 
     return 0;
 }
-
-
-
 

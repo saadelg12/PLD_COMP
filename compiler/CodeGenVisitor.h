@@ -3,16 +3,18 @@
 
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
-
+#include "SymbolTable.h"
 
 class  CodeGenVisitor : public ifccBaseVisitor {                
         private:
-                std::map<std::string, int>* symbolTable; // Table des symboles
+                SymbolTable *currentScope; // Table des symboles
                 int tempVarOffset;  // Offset pour les variables temporaires
                 
 	public:
-        explicit   CodeGenVisitor(std::map<std::string, int>* table, int offset)
-        : symbolTable(table), tempVarOffset(offset) {}
+        explicit CodeGenVisitor(SymbolTable* table, int offset) : tempVarOffset(offset), currentScope(table) {}
+
+        
+
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
         virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
@@ -32,6 +34,9 @@ class  CodeGenVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override;
         
         virtual antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override;
+
+        
+
 
 
 
