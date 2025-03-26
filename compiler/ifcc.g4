@@ -11,25 +11,21 @@ return_stmt: RETURN expr ';' ;
 
 RETURN : 'return' ;
 
-expr
-    : '!' expr                  # NotExpr        // ← nouvelle ligne ici
-    |'-' expr             # NegateExpr
+expr : '!' expr                          # NotExpr        // ← nouvelle ligne ici
+    |'-' expr                            # NegateExpr
     | expr OP = ('*' | '/' | '%') expr   # MulDiv
-    | expr OP = ('+' | '-') expr   # AddSub
+    | expr OP = ('+' | '-') expr         # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr  # CmpExpr
-    | expr ('&' | '|' | '^') expr    # BitwiseExpr
-    | '(' expr ')'          # ParExpr
-    | VAR                   # VarExpr
-    | CONST                 # ConstExpr
-    | CHAR                 # CharConstExpr
-
+    | expr ('&' | '|' | '^') expr                        # BitwiseExpr
+    | '(' expr ')'                      # ParExpr
+    | VAR                               # VarExpr
+    | CONST                             # ConstExpr
+    | CHAR                              # CharConstExpr
     ;
-
 
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;
 CHAR : '\'' . '\'' ;
-
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
