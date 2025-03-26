@@ -191,7 +191,7 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *ctx) {
+antlrcpp::Any CodeGenVisitor::visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) {
     // Visiter partie gauche %eax
     visit(ctx->expr(0));
     tempVarOffset -= 4;
@@ -206,20 +206,49 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *c
 
     // Recharger lhs
     std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
-
-    // Trouver l'opérateur entre les deux enfants
-    std::string op = ctx->getText();
-    if (op.find("&") != std::string::npos) {
-        std::cout << "    andl " << rightOffset << "(%rbp), %eax   # lhs & rhs\n";
-    } else if (op.find("|") != std::string::npos) {
-        std::cout << "    orl " << rightOffset << "(%rbp), %eax   # lhs | rhs\n";
-    } else if (op.find("^") != std::string::npos) {
-        std::cout << "    xorl " << rightOffset << "(%rbp), %eax   # lhs ^ rhs\n";
-    }
+    std::cout << "    andl " << rightOffset << "(%rbp), %eax   # lhs & rhs\n";
 
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) {
+    // Visiter partie gauche %eax
+    visit(ctx->expr(0));
+    tempVarOffset -= 4;
+    int leftOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << leftOffset << "(%rbp)   # Save lhs into temp\n";
+
+    // Visiter partie droite %eax
+    visit(ctx->expr(1));
+    tempVarOffset -= 4;
+    int rightOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << rightOffset << "(%rbp)   # Save rhs into temp\n";
+
+    // Recharger lhs
+    std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
+    std::cout << "    xorl " << rightOffset << "(%rbp), %eax   # lhs ^ rhs\n";
+
+    return 0;
+}
+antlrcpp::Any CodeGenVisitor::visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) {
+    // Visiter partie gauche %eax
+    visit(ctx->expr(0));
+    tempVarOffset -= 4;
+    int leftOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << leftOffset << "(%rbp)   # Save lhs into temp\n";
+
+    // Visiter partie droite %eax
+    visit(ctx->expr(1));
+    tempVarOffset -= 4;
+    int rightOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << rightOffset << "(%rbp)   # Save rhs into temp\n";
+
+    // Recharger lhs
+    std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
+    std::cout << "    orl " << rightOffset << "(%rbp), %eax   # lhs | rhs\n";
+
+    return 0;
+}
 
 
 
