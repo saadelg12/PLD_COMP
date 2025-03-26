@@ -2,6 +2,7 @@
 
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
+#include "Type.h"
 
 #include <map>
 #include <set>
@@ -25,6 +26,9 @@ public:
     void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée
     void checkHasReturn();  // Vérifie si une fonction a un `return`
     std::map<std::string, int>* getSymbolTable() { return &symbolTable; } // Retourne la table des symboles
-    int getStackOffset() { return stackOffset; } // Retourne l'offset
+    std::map<std::string, Type> symbolTypes; // Associe une variable à son type
+    const std::map<std::string, int>& getOffsets() const { return symbolTable; }
+    int getStackOffset() const { return stackOffset; }
+
 };
 

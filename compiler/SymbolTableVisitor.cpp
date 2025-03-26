@@ -1,7 +1,7 @@
 #include "SymbolTableVisitor.h"
 
 antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
+    std::string varName = ctx->ID()->getText();
 
     if (symbolTable.find(varName) != symbolTable.end()) {
         std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée !" << std::endl;
@@ -17,7 +17,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
 }
 
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
+    std::string varName = ctx->ID()->getText();
 
     if (symbolTable.find(varName) == symbolTable.end()) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;

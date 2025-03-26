@@ -1,5 +1,12 @@
-#pragma once
+#ifndef TYPE_H
+#define TYPE_H
 
-enum Type {
-    INT
+// ---------- TYPES SUPPORTÉS ----------
+enum Type
+{
+	INT,
+	CHAR,
+	VOID
 };
+
+#endif

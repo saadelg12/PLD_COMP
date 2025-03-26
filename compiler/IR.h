@@ -1,20 +1,14 @@
 #pragma once
 
 #include "generated/ifccBaseVisitor.h"
+#include "SymbolTableVisitor.h"
+#include "Type.h"
 #include <map>
 #include <vector>
 #include <iostream>
 #include <string>
 
 using namespace std;
-
-// ---------- TYPES SUPPORTÉS ----------
-enum Type
-{
-	INT,
-	CHAR,
-	VOID
-};
 
 // ---------- PRÉDECLARATIONS ----------
 class IRInstr;
@@ -90,52 +84,47 @@ public:
 class CFG
 {
 public:
-	CFG(void *ast) : ast(ast), nextFreeSymbolIndex(-4), nextBBnumber(0) {}
+    CFG(void *ast_, const SymbolTableVisitor &symtab)
+        : ast(ast_), current_bb(nullptr),
+          SymbolIndex(symtab.getOffsets()),
+          SymbolType(symtab.symbolTypes),
+          nextFreeSymbolIndex(symtab.getStackOffset()) {}
 
-	void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
+    void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
 
-	void gen_asm(ostream &o);
-	void gen_asm_prologue(ostream &o);
-	void gen_asm_epilogue(ostream &o);
+    void gen_asm(ostream &o);
+    void gen_asm_prologue(ostream &o);
+    void gen_asm_epilogue(ostream &o);
 
-	string IR_reg_to_asm(string reg)
-	{
-		return to_string(get_var_index(reg)) + "(%rbp)";
-	}
+    string IR_reg_to_asm(const string &reg) const
+    {
+        return to_string(get_var_index(reg)) + "(%rbp)";
+    }
 
-	int get_var_index(string name)
-	{
-		return SymbolIndex.at(name);
-	}
+    int get_var_index(const string &name) const
+    {
+        return SymbolIndex.at(name);
+    }
 
-	void add_to_symbol_table(string name, Type t)
-	{
-		SymbolType[name] = t;
-		SymbolIndex[name] = nextFreeSymbolIndex;
-		nextFreeSymbolIndex -= 4;
-	}
+    string create_new_tempvar(Type t)
+    {
+        string name = "!tmp" + to_string(-nextFreeSymbolIndex);
+        SymbolType[name] = t;
+        SymbolIndex[name] = nextFreeSymbolIndex;
+        nextFreeSymbolIndex -= 4;
+        return name;
+    }
 
-	string create_new_tempvar(Type t)
-	{
-		string name = "!tmp" + to_string(-nextFreeSymbolIndex);
-		add_to_symbol_table(name, t);
-		return name;
-	}
+    map<string, Type> &getSymbolType() { return SymbolType; }
 
-	BasicBlock *current_bb;
-
-	map<string, Type> &getSymbolType()
-	{
-		return SymbolType;
-	}
+    BasicBlock *current_bb;
 
 private:
-	void *ast;
-	map<string, Type> SymbolType;
-	map<string, int> SymbolIndex;
-	int nextFreeSymbolIndex;
-	int nextBBnumber;
-	vector<BasicBlock *> bbs;
+    void *ast;
+    map<string, int> SymbolIndex;
+    map<string, Type> SymbolType;
+    int nextFreeSymbolIndex;
+    vector<BasicBlock *> bbs;
 };
 
 // ---------- ASSEMBLEUR POUR IRInstr ----------
@@ -360,24 +349,23 @@ public:
 		cfg->add_bb(cfg->current_bb);
 	}
 
-	antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override
-	{
-		for (auto stmt : ctx->stmt())
-		{
+	antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override {
+		auto stmts = ctx->block()->stmt();
+		for (auto stmt : stmts) {
 			this->visit(stmt);
-
-			// 💡 Si on a rencontré un 'ret', on arrête de visiter
-			if (!cfg->current_bb->instrs.empty())
-			{
+	
+			// early return: si on a déjà rencontré 'ret'
+			if (!cfg->current_bb->instrs.empty()) {
 				IRInstr *last = cfg->current_bb->instrs.back();
-				if (last->getOperation() == IRInstr::ret)
-				{
+				if (last->getOperation() == IRInstr::ret) {
 					break;
 				}
 			}
 		}
 		return 0;
 	}
+	
+	
 
 	antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
 	{
@@ -398,8 +386,7 @@ public:
 
 	antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override
 	{
-		std::string varName = ctx->VAR()->getText();
-		cfg->add_to_symbol_table(varName, INT);
+		std::string varName = ctx->ID()->getText();
 
 		if (ctx->expr())
 		{
@@ -417,7 +404,7 @@ public:
 
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
-		std::string varName = ctx->VAR()->getText();
+		std::string varName = ctx->ID()->getText();
 		std::string rhs = visit(ctx->expr());
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		return 0;
@@ -425,7 +412,7 @@ public:
 
 	antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	{
-		return ctx->VAR()->getText();
+		return ctx->ID()->getText();
 	}
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override

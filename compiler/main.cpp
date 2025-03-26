@@ -53,7 +53,7 @@ int main(int argn, const char **argv)
     symbolTableVisitor.checkHasReturn();
 
     // Génération de l’IR à partir de l’AST
-    CFG cfg(nullptr); // tu peux passer un pointeur vers l’AST plus tard si besoin
+    CFG cfg(tree, symbolTableVisitor);
     IRGenerator irgen(&cfg);
     irgen.visit(tree);
 
