@@ -1,37 +1,49 @@
 grammar ifcc;
 
-axiom : prog EOF ;
+axiom : function EOF ; // Replaced 'prog' with 'function'
 
-prog : 'int' 'main' '(' ')' '{' stmt*'}' ;
-stmt: declaration | assignment | return_stmt ;
+function
+    : type ID '(' ')' block ; // Updated function definition to use 'ID' and 'block'
 
-declaration: 'int' VAR ('=' expr)? ';' ;
-assignment: VAR '=' expr ';' ;
+block
+    : '{' stmt* '}' ; // Defined 'block' as a sequence of statements enclosed in braces
+
+stmt
+    : declaration
+    | assignment
+    | return_stmt
+    ;
+
+declaration: 'int' ID ('=' expr)? ';' ; // Replaced 'VAR' with 'ID'
+assignment: ID '=' expr ';' ; // Replaced 'VAR' with 'ID'
 return_stmt: RETURN expr ';' ;
+
+type
+    : 'int'
+    | 'void'
+    ;
 
 RETURN : 'return' ;
 
 expr
-    : '!' expr                  # NotExpr        // ← nouvelle ligne ici
-    |'-' expr             # NegateExpr
+    : '!' expr                  # NotExpr
+    | '-' expr                  # NegateExpr
     | expr OP = ('*' | '/' | '%') expr   # MulDiv
-    | expr OP = ('+' | '-') expr   # AddSub
+    | expr OP = ('+' | '-') expr         # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr  # CmpExpr
-    | expr ('&') expr                # BitwiseAndExpr
-    | expr ('^') expr                # BitwiseXorExpr
-    | expr ('|') expr                # BitwiseOrExpr
-    | '(' expr ')'          # ParExpr
-    | VAR                   # VarExpr
-    | CONST                 # ConstExpr
-    | CHAR                 # CharConstExpr
-
+    | expr ('&') expr                        # BitwiseAndExpr
+    | expr ('^') expr                        # BitwiseXorExpr
+    | expr ('|') expr                        # BitwiseOrExpr
+    | '(' expr ')'                  # ParExpr
+    | ID '(' (expr (',' expr)*)? ')' # FunctionCallExpr // Replaced 'VAR' with 'ID'
+    | ID                           # VarExpr // Replaced 'VAR' with 'ID'
+    | CONST                         # ConstExpr
+    | CHAR                          # CharConstExpr
     ;
 
-
-VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
+ID: [a-zA-Z_][a-zA-Z_0-9]* ; // Replaced 'VAR' with 'ID'
 CONST : [0-9]+ ;
 CHAR : '\'' . '\'' ;
-
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;

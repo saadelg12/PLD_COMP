@@ -14,7 +14,7 @@ private:
     std::set<std::string> usedVariables;    // Stocke les variables utilisées pour vérifier leur usage
     int stackOffset = -4;  // Offset de la première variable (%rbp - 4)
     bool hasReturn = false;  // Vérifie si un `return` existe
-    
+    std::map<std::string, std::pair<std::string, std::vector<std::pair<std::string, std::string>>>> functionTable;
 
 public:
     virtual antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override;
@@ -26,5 +26,7 @@ public:
     void checkHasReturn();  // Vérifie si une fonction a un `return`
     std::map<std::string, int>* getSymbolTable() { return &symbolTable; } // Retourne la table des symboles
     int getStackOffset() { return stackOffset; } // Retourne l'offset
+    virtual antlrcpp::Any visitFunction_def(ifccParser::Function_defContext *ctx) override;
+
 };
 

@@ -53,3 +53,36 @@ void SymbolTableVisitor::checkHasReturn() {
         exit(1);
     }
 }
+
+
+
+antlrcpp::Any SymbolTableVisitor::visitFunction_def(ifccParser::Function_defContext *ctx) {
+    std::string functionName = ctx->VAR()->getText();
+    std::string returnType = ctx->type()->getText();
+
+    // Check if the function is already defined
+    if (functionTable.find(functionName) != functionTable.end()) {
+        std::cerr << "Erreur : Fonction '" << functionName << "' déjà définie !" << std::endl;
+        exit(1);
+    }
+
+    // Parse parameters
+    std::vector<std::pair<std::string, std::string>> parameters;
+    if (ctx->param_list()) {
+        for (auto paramCtx : ctx->param_list()->param()) {
+            std::string paramType = paramCtx->type()->getText();
+            std::string paramName = paramCtx->VAR()->getText();
+            parameters.push_back({paramType, paramName});
+        }
+    }
+
+    // Add function to the function table
+    functionTable[functionName] = {returnType, parameters};
+
+    // Visit each statement in the function body
+    for (auto stmt : ctx->stmt()) {
+        visit(stmt); // Visit each statement individually
+    }
+
+    return 0;
+}

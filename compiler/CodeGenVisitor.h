@@ -33,5 +33,7 @@ class CodeGenVisitor : public ifccBaseVisitor {
                 virtual antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override;
                 
                 virtual antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override;
+                virtual antlrcpp::Any visitFunction_def(ifccParser::Function_defContext *ctx) override;
+
 };;
 

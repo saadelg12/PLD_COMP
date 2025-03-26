@@ -48,7 +48,10 @@ antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx
 }
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
-    visit(ctx->expr());
+    if (ctx->expr()) {
+        visit(ctx->expr());
+        std::cout << "    movl %eax, %eax\n"; // Return value in %eax
+    }
     std::cout << "    leave\n";  // Equivalent à `movq %rbp, %rsp` suivi de `popq %rbp`
     std::cout << "    ret\n";    // Retourner à l'appelant     
     return 0;
@@ -251,4 +254,45 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseOrExpr(ifccParser::BitwiseOrExprContex
 }
 
 
+antlrcpp::Any CodeGenVisitor::visitFunction_def(ifccParser::Function_defContext *ctx) {
+    std::string functionName = ctx->VAR()->getText();
 
+    // Function label
+    std::cout << ".globl " << functionName << "\n";
+    std::cout << functionName << ":\n";
+
+    // Prologue
+    std::cout << "    pushq %rbp\n";
+    std::cout << "    movq %rsp, %rbp\n";
+
+    // Allocate space for local variables
+    int localVarSpace = 0;
+    for (auto stmt : ctx->stmt()) {
+        if (stmt->declaration()) { // Check if the statement is a declaration
+            localVarSpace += 4; // Example: 4 bytes per variable
+        }
+    }
+    std::cout << "    subq $" << localVarSpace << ", %rsp\n";
+
+    // Handle parameters
+    if (ctx->param_list()) {
+        int paramOffset = 16; // Parameters start at 16(%rbp)
+        for (auto paramCtx : ctx->param_list()->param()) {
+            std::string paramName = paramCtx->VAR()->getText();
+            (*symbolTable)[paramName] = paramOffset;
+            paramOffset += 8; // Each parameter is 8 bytes
+        }
+    }
+
+    // Visit each statement in the function body
+    for (auto stmt : ctx->stmt()) {
+        visit(stmt); // Visit each statement individually
+    }
+
+    // Epilogue
+    std::cout << "    movq %rbp, %rsp\n";
+    std::cout << "    popq %rbp\n";
+    std::cout << "    ret\n";
+
+    return 0;
+}
