@@ -57,8 +57,9 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
     int offset = currentScope->get(varName);
-
-    std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
+    if( offset != -1){
+        std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
+    }
     return 0;
 }
 
@@ -220,3 +221,16 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *c
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) 
+{
+    SymbolTable * newSymbolTable = new SymbolTable();
+    newSymbolTable->parent = this->currentScope;
+    this->currentScope = newSymbolTable;
+    
+    for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
+        this->visit(stmt);  // visit each statement (declaration, assignment, return)
+    }
+    currentScope = currentScope->parent;
+    delete newSymbolTable;
+    return 0;
+}

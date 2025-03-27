@@ -23,7 +23,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
 
-    if (!currentScope.contains(varName)) {
+    if (currentScope.get(varName)==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
@@ -38,6 +38,31 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
         hasReturn = true;
     } 
     this->visit(ctx->expr()); // Visiter l'expression à retourner
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    
+    
+    // Sauvegarde de l'ancien scope
+    SymbolTable previousScope = currentScope;
+    
+    // Nouveau scope pour ce bloc
+    currentScope = SymbolTable();
+    currentScope.parent = &previousScope;
+    
+    // Visiter toutes les instructions du bloc
+    for (auto stmt : ctx->stmt()) {
+        this->visit(stmt);
+    }
+
+    // Vérifier les variables inutilisées avant de quitter le bloc
+    checkUnusedVariables();
+
+    // Restauration de l'ancien scope
+    currentScope = previousScope;
+    
+    
     return 0;
 }
 
