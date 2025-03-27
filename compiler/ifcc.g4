@@ -7,12 +7,14 @@ stmt: declaration | assignment | return_stmt ;
 
 declaration: 'int' VAR ('=' expr)? ';' ;
 assignment: VAR '=' expr ';' ;
+assignExpr  : VAR '=' expr  ;
 return_stmt: RETURN expr ';' ;
 
 RETURN : 'return' ;
 
 expr
-    : '!' expr                  # NotExpr        // ← nouvelle ligne ici
+    : assignExpr              # AssignationExpression
+    |'!' expr                  # NotExpr        // ← nouvelle ligne ici
     |'-' expr             # NegateExpr
     | expr OP = ('*' | '/' | '%') expr   # MulDiv
     | expr OP = ('+' | '-') expr   # AddSub
