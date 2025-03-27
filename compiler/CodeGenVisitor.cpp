@@ -38,14 +38,16 @@ antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *c
 }
 
 antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
-    std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable assignée
+    std::string varName = ctx->VAR()->getText();
+    int offset = (*symbolTable)[varName];
 
-    int offset = (*symbolTable)[varName];  // On suppose que `symbolTable` est déjà valide. On récupére l'offset
-    
-    visit(ctx->expr());  // Visiter l'expression à droite de l'opérateur d'assignation
-    std::cout << "    movl %eax, " << offset << "(%rbp)   # Copier la valeur dans " << varName << "\n";  
-    return 0;
+    antlrcpp::Any value = visit(ctx->expr());  // On visite l'expression à droite et récupère sa valeur
+
+    std::cout << "    movl %eax, " << offset << "(%rbp)   # Affectation de " << varName << "\n";
+
+    return value;  // Retourner la valeur affectée pour permettre a = b = 3;
 }
+
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
     visit(ctx->expr());
