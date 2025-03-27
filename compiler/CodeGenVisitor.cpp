@@ -28,26 +28,26 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx)
 {   
     std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable
-    int offset = (*symbolTable)[varName]; 
+    int offset = currentScope->get(varName);
     if (ctx->expr()) {
         visit(ctx->expr());
         std::cout << "    movl %eax, " << offset << "(%rbp)   # Initialisation de " << varName << "\n"; 
-        }         
+    }         
     
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
-    int offset = (*symbolTable)[varName];
+    std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable assignée
 
+    int offset = currentScope->get(varName);
+    
     antlrcpp::Any value = visit(ctx->expr());  // On visite l'expression à droite et récupère sa valeur
 
     std::cout << "    movl %eax, " << offset << "(%rbp)   # Affectation de " << varName << "\n";
 
-    return value;  // Retourner la valeur affectée pour permettre a = b = 3;
+    return value;
 }
-
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
     visit(ctx->expr());
@@ -58,9 +58,10 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
-    int offset = (*symbolTable)[varName];
-
-    std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
+    int offset = currentScope->get(varName);
+    if( offset != -1){
+        std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
+    }
     return 0;
 }
 
@@ -222,6 +223,16 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *c
     return 0;
 }
 
-
-
-
+antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) 
+{
+    SymbolTable * newSymbolTable = new SymbolTable();
+    newSymbolTable->parent = this->currentScope;
+    this->currentScope = newSymbolTable;
+    
+    for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
+        this->visit(stmt);  // visit each statement (declaration, assignment, return)
+    }
+    currentScope = currentScope->parent;
+    delete newSymbolTable;
+    return 0;
+}

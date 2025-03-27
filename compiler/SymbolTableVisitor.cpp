@@ -3,23 +3,27 @@
 antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx) {
     std::string varName = ctx->VAR()->getText();
 
-    if (symbolTable.find(varName) != symbolTable.end()) {
-        std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée !" << std::endl;
+    // Vérifier si la variable existe déjà dans le scope courant
+    if (currentScope.contains(varName)) {
+        std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée dans ce scope !" << std::endl;
         exit(1);
     }
 
-    symbolTable[varName] = stackOffset;
+    // Insérer la variable avec l'offset actuel
+    currentScope.insert(varName, stackOffset);
     stackOffset -= 4;  // Réserver 4 octets pour la variable
 
-    std::cout << "# Déclaration : " << varName << " -> " << symbolTable[varName] << " (%rbp)" << std::endl;
+    std::cout << "# Déclaration : " << varName << " -> " 
+              << currentScope.get(varName) << " (%rbp)" << std::endl;
 
     return 0;
 }
 
+
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
 
-    if (symbolTable.find(varName) == symbolTable.end()) {
+    if (currentScope.get(varName)==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
@@ -37,7 +41,35 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
     return 0;
 }
 
+antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    
+    
+    // Sauvegarde de l'ancien scope
+    SymbolTable previousScope = currentScope;
+    
+    // Nouveau scope pour ce bloc
+    currentScope = SymbolTable();
+    currentScope.parent = &previousScope;
+    
+    // Visiter toutes les instructions du bloc
+    for (auto stmt : ctx->stmt()) {
+        this->visit(stmt);
+    }
+
+    // Vérifier les variables inutilisées avant de quitter le bloc
+    checkUnusedVariables();
+
+    // Restauration de l'ancien scope
+    currentScope = previousScope;
+    
+    
+    return 0;
+}
+
 void SymbolTableVisitor::checkUnusedVariables() {
+    
+    // Accéder à la table des symboles dans la portée actuelle
+    const auto& symbolTable = currentScope.table;
     for (const auto& entry : symbolTable) {
         const auto& varName = entry.first;
         if (usedVariables.find(varName) == usedVariables.end()) {
