@@ -6,22 +6,22 @@ prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
 
 block : '{' stmt* '}' ;
 
-stmt : declaration
-     | assignment
-     | return_stmt
+stmt : declaration ';'
+     | assignment ';'
+     | return_stmt 
      | block ;
 
-declaration : 'int' VAR ('=' expr)? ';' ;
+declaration : 'int' VAR ('=' expr)? ;
 
-assignment: VAR '=' expr ';' ;
-assignExpr  : VAR '=' expr  ;
+
+assignment: VAR '=' expr ;
 
 return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 
 expr
-    : assignExpr                        # AssignationExpr 
+    : assignment                       # AssignementExpr 
     | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
     | expr OP=('*' | '/' | '%') expr     # MulDiv
