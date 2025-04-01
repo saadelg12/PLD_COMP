@@ -2,9 +2,17 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' block ;
+prog : function+;
 
-block : '{' stmt* '}' ;
+function: type VAR '(' (parameter_list)? ')' block;
+
+parameter_list: parameter (',' parameter)*;
+
+parameter: type VAR;
+
+type: 'int' | 'char';
+
+block : '{' stmt* '}';
 
 stmt : declaration ';'
      | assignment ';'
