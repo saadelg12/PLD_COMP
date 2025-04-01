@@ -544,25 +544,28 @@ public:
 		return temp;
 	}
 
-	antlrcpp::Any visitBitwiseExpr(ifccParser::BitwiseExprContext *ctx)
-	{
+	
+	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override {
 		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
 		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
-		std::string op = ctx->getText();
-		if (op.find("&") != std::string::npos)
-		{
-			cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
-		}
-		else if (op.find("|") != std::string::npos)
-		{
-			cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
-		}
-		else if (op.find("^") != std::string::npos)
-		{
-			cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
-		}
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
+		return result;
+	}
 
+	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override {
+		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
+		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string result = cfg->create_new_tempvar(INT);
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
+		return result;
+	}
+
+	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override {
+		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
+		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string result = cfg->create_new_tempvar(INT);
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
 		return result;
 	}
 
