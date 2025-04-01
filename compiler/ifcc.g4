@@ -2,30 +2,35 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
+prog : 'int' 'main' '(' ')' block ;
 
 block : '{' stmt* '}' ;
 
-stmt : declaration
-     | assignment
-     | return_stmt
+stmt : declaration ';'
+     | assignment ';'
+     | return_stmt 
      | block ;
 
-declaration : 'int' VAR ('=' expr)? ';' ;
+declaration : 'int' VAR ('=' expr)? ;
 
-assignment : VAR '=' expr ';' ;
+
+assignment: VAR '=' expr ;
 
 return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 
 expr
-    : '!' expr                          # NotExpr
+    : assignment                       # AssignementExpr 
+    | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
     | expr OP=('*' | '/' | '%') expr     # MulDiv
     | expr OP=('+' | '-') expr           # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr   # CmpExpr
     | expr ('&' | '|' | '^') expr        # BitwiseExpr
+    | expr ('&') expr                # BitwiseAndExpr
+    | expr ('^') expr                # BitwiseXorExpr
+    | expr ('|') expr                # BitwiseOrExpr
     | '(' expr ')'                       # ParExpr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr
