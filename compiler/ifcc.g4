@@ -10,7 +10,7 @@ parameter_list: parameter (',' parameter)*;
 
 parameter: type VAR;
 
-type: 'int' | 'char';
+type: 'int' | 'void';
 
 block : '{' stmt* '}';
 

@@ -12,10 +12,12 @@
 class SymbolTableVisitor : public ifccBaseVisitor {
 private:
     SymbolTable * currentScope; 
-    std::vector<SymbolTable *> symbolTables;
+    std::map<std::string, std::string> functions; // Nom de la fonction et son type
+    std::map<std::string,  std::vector<SymbolTable *> > functionSymbolTables;
     std::set<std::string> usedVariables;    // Stocke les variables utilisées pour vérifier leur usage
     int stackOffset = -4;  // Offset de la première variable (%rbp - 4)
     bool hasReturn = false;  // Vérifie si un `return` existe
+
 
     
     
