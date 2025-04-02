@@ -236,3 +236,21 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
     delete newSymbolTable;
     return 0;
 }
+
+antlrcpp::Any CodeGenVisitor::visitFunction_call(ifccParser::Function_callContext *ctx) {
+    std::string funcName = ctx->FUNC()->getText();
+
+    if (funcName == "putchar") {
+        antlrcpp::Any value = visit(ctx->expr());  // Évaluer l'argument
+        std::cout << "    movl %eax, %edi   # Argument pour putchar\n";
+        std::cout << "    call putchar      # Appel de putchar\n";
+    } 
+    else if (funcName == "getchar") {
+        std::cout << "    call getchar      # Appel de getchar\n";
+        std::cout << "    movl %eax, -4(%rbp)  # Stocker la valeur lue\n";
+    }
+
+    return 0;
+}
+
+

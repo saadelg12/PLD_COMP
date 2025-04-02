@@ -37,6 +37,8 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 
         virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
 
+        virtual antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override;
+
 
         
 

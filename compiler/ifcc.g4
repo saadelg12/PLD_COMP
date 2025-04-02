@@ -8,6 +8,7 @@ block : '{' stmt* '}' ;
 
 stmt : declaration ';'
      | assignment ';'
+     | expr ';'  // Permet d'écrire des expressions comme stmt
      | return_stmt 
      | block ;
 
@@ -18,10 +19,12 @@ assignment: VAR '=' expr ;
 
 return_stmt : RETURN expr ';' ;
 
+
 RETURN : 'return' ;
 
 expr
-    : assignment                       # AssignementExpr 
+    : function_call                     # FunctionCallExpr
+    |assignment                         # AssignementExpr 
     | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
     | expr OP=('*' | '/' | '%') expr     # MulDiv
@@ -33,6 +36,10 @@ expr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
     ;
+
+function_call : FUNC '(' (expr)? ')' ;  // Appel de fonction avec ou sans argument
+
+FUNC : 'putchar' | 'getchar' ;  // Définition des fonctions externes
 
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;
