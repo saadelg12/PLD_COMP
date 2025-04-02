@@ -8,8 +8,10 @@
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
 
-#include "CodeGenVisitor.h"
+
 #include "SymbolTableVisitor.h" 
+#include "IR.h"
+
 
 using namespace antlr4;
 using namespace std;
@@ -55,8 +57,20 @@ int main(int argn, const char **argv)
   symbolTableVisitor.checkUnusedVariables();
   symbolTableVisitor.checkHasReturn();
   
-  CodeGenVisitor codeGenVisitor(symbolTableVisitor.getSymbolTable(), symbolTableVisitor.getStackOffset());
-  codeGenVisitor.visit(tree);
+  // CodeGenVisitor codeGenVisitor(symbolTableVisitor.getSymbolTable(), symbolTableVisitor.getStackOffset());
+  // codeGenVisitor.visit(tree);
+
+// Génération de l’IR à partir de l’AST
+    CFG cfg(tree, symbolTableVisitor);
+    IRGenerator irgen(&cfg);
+    irgen.visit(tree);
+
+    // Génération du code assembleur depuis l’IR
+    cfg.gen_asm(std::cout);
 
   return 0;
 }
+
+
+
+

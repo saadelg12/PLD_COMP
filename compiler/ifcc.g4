@@ -2,7 +2,7 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
+prog : 'int' 'main' '(' ')' block ;
 
 block : '{' stmt* '}' ;
 
@@ -30,7 +30,9 @@ expr
     | expr OP=('*' | '/' | '%') expr     # MulDiv
     | expr OP=('+' | '-') expr           # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr   # CmpExpr
-    | expr ('&' | '|' | '^') expr        # BitwiseExpr
+    | expr ('&') expr                # BitwiseAndExpr
+    | expr ('^') expr                # BitwiseXorExpr
+    | expr ('|') expr                # BitwiseOrExpr
     | '(' expr ')'                       # ParExpr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr

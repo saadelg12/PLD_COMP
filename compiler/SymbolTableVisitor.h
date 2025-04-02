@@ -11,13 +11,26 @@
 
 class SymbolTableVisitor : public ifccBaseVisitor {
 private:
-    SymbolTable currentScope; 
+    SymbolTable * currentScope; 
+    std::vector<SymbolTable *> symbolTables;
     std::set<std::string> usedVariables;    // Stocke les variables utilisées pour vérifier leur usage
     int stackOffset = -4;  // Offset de la première variable (%rbp - 4)
     bool hasReturn = false;  // Vérifie si un `return` existe
+
+    
     
 
 public:
+    SymbolTableVisitor(): currentScope(nullptr)  {symbolTables.push_back(currentScope);};
+
+    ~SymbolTableVisitor() {
+        // Delete all symbol tables in reverse order (children first)
+        for (auto it = symbolTables.rbegin(); it != symbolTables.rend(); ++it) {
+            delete *it;
+        }
+        symbolTables.clear();
+        currentScope = nullptr;
+    }
     virtual antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override;
     //virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
@@ -26,7 +39,6 @@ public:
     
     void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée
     void checkHasReturn();  // Vérifie si une fonction a un `return`
-    SymbolTable* getSymbolTable() { return &currentScope; } // Retourne la table des symboles actuelle
-    int getStackOffset() { return stackOffset; } // Retourne l'offset
+    std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
+    int getStackOffset() const { return stackOffset; } // Retourne l'offset
 };
-
