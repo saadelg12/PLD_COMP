@@ -45,6 +45,8 @@ public:
 
 	void gen_asm(ostream &o);
 
+	void gen_asm_arm(std::ostream &o);
+
 private:
 	BasicBlock *bb;
 	Operation op;
@@ -84,52 +86,72 @@ public:
 class CFG
 {
 public:
-    CFG(void *ast_, const SymbolTableVisitor &symtab)
-        : ast(ast_), current_bb(nullptr),
-          SymbolIndex(symtab.getOffsets()),
-          SymbolType(symtab.symbolTypes),
-          nextFreeSymbolIndex(symtab.getStackOffset()) {}
+	CFG(void *ast_, const SymbolTableVisitor &symtab)
+		: ast(ast_),
+		  symbolTable(symtab.getSymbolTables()),
+		  nextFreeSymbolIndex(symtab.getStackOffset()),
+		  currentST_index(0),
+		  last_ST_index(0) {}
 
-    void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
+	void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
 
-    void gen_asm(ostream &o);
-    void gen_asm_prologue(ostream &o);
-    void gen_asm_epilogue(ostream &o);
+	void gen_asm(ostream &o);
+	void gen_asm_prologue(ostream &o);
+	void gen_asm_epilogue(ostream &o);
 
-    string IR_reg_to_asm(const string &reg) const
-    {
-        return to_string(get_var_index(reg)) + "(%rbp)";
-    }
+	string IR_reg_to_asm(const string &reg) const
+	{
+		int offset = get_var_index(reg);
+		if (is_arm)
+			return "[sp, #" + to_string(offset + 16) + "]"; // stack offset + frame alloc
+		else
+			return to_string(offset) + "(%rbp)";
+	}
 
-    int get_var_index(const string &name) const
-    {
-        return SymbolIndex.at(name);
-    }
+	int get_var_index(const string &name) const
+	{
+		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
+		int res = current_symbol_table->get(name).symbolOffset;
 
-    string create_new_tempvar(Type t)
-    {
-        string name = "!tmp" + to_string(-nextFreeSymbolIndex);
-        SymbolType[name] = t;
-        SymbolIndex[name] = nextFreeSymbolIndex;
-        nextFreeSymbolIndex -= 4;
-        return name;
-    }
+		return res;
+	}
+	Type get_var_type(const string &name) const
+	{
+		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
+		return current_symbol_table->get(name).symbolType;
+	}
 
-    map<string, Type> &getSymbolType() { return SymbolType; }
+	string create_new_tempvar(Type t)
+	{
+		string name = "!tmp" + to_string(-nextFreeSymbolIndex);
+		Symbol s;
+		s.symbolName = name;
+		s.symbolOffset = nextFreeSymbolIndex;
+		s.symbolType = t;
+		symbolTable.at(currentST_index)->table[name] = s;
+		nextFreeSymbolIndex -= 4;
+		return name;
+	}
 
-    BasicBlock *current_bb;
+	int currentST_index;
+	int last_ST_index;
+	vector<BasicBlock *> bbs;
+	vector<SymbolTable *> symbolTable;
+	BasicBlock *current_bb;
+
+	bool is_arm = false;	  // false = x86, true = ARM
+	int stack_allocation = 0; // Allocation pour décalage de sp
 
 private:
-    void *ast;
-    map<string, int> SymbolIndex;
-    map<string, Type> SymbolType;
-    int nextFreeSymbolIndex;
-    vector<BasicBlock *> bbs;
+	void *ast;
+
+	int nextFreeSymbolIndex;
 };
 
 // ---------- ASSEMBLEUR POUR IRInstr ----------
 void IRInstr::gen_asm(ostream &o)
 {
+
 	string s = suffix_for_type(t); // suffix for instruction based on type
 	string dst;
 
@@ -245,7 +267,7 @@ void IRInstr::gen_asm(ostream &o)
 		o << "    movl %eax, " << dst << "\n";
 		break;
 
-		case bitwise_and:
+	case bitwise_and:
 		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
 		o << "    and" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
 		o << "    mov" << s << " %eax, " << dst << "\n";
@@ -278,10 +300,182 @@ void IRInstr::gen_asm(ostream &o)
 				o << "    movzbl %al, %eax\n"; // étend 8 bits → 32 bits
 			}
 		}
+		o << "    leave\n";
+		o << "    ret\n";
 		break;
 	}
 
 	default:
+		break;
+	}
+}
+
+void IRInstr::gen_asm_arm(std::ostream &o)
+{
+	string dst = bb->cfg->IR_reg_to_asm(params[0]);
+	string reg1 = "w1";
+	string reg2 = "w2";
+	string dst_reg = "w0";
+
+	bool is_last_instr = (bb->instrs.back() == this);
+	bool is_last_bb = (bb->cfg->bbs.back() == bb);
+	bool skip_store = is_last_instr && is_last_bb && bb->cfg->current_bb == bb;
+
+	switch (op)
+	{
+	case ldconst:
+		o << "    mov " << dst_reg << ", #" << params[1] << "\n";
+		if (!skip_store)
+			o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+
+	case copy:
+		o << "    ldr " << dst_reg << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		if (!skip_store)
+			o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+
+	case add:
+	case sub:
+	case mul:
+	{
+		string op_instr = (op == add) ? "add" : (op == sub) ? "sub"
+															: "mul";
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    " << op_instr << " " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
+
+		// 💡 NE FAIS PAS DE STR si l’instruction suivante est un ret de la même variable
+		bool next_is_ret = false;
+		if (bb->instrs.size() >= 2)
+		{
+			IRInstr *next = bb->instrs[bb->instrs.size() - 1];
+			if (next->getOperation() == ret && next->params[0] == params[0])
+			{
+				next_is_ret = true;
+			}
+		}
+
+		if (!next_is_ret)
+			o << "    str " << dst_reg << ", " << dst << "\n";
+
+		break;
+	}
+
+	case div:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    sdiv " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case mod:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    sdiv w3, " << reg1 << ", " << reg2 << "\n";
+		o << "    msub " << dst_reg << ", w3, " << reg2 << ", " << reg1 << " // w0 = lhs - (lhs / rhs) * rhs\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case cmp_eq:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp " << reg1 << ", " << reg2 << "\n";
+		o << "    cset " << dst_reg << ", eq\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case cmp_lt:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp " << reg1 << ", " << reg2 << "\n";
+		o << "    cset " << dst_reg << ", lt\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case cmp_le:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp " << reg1 << ", " << reg2 << "\n";
+		o << "    cset " << dst_reg << ", le\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case cmp_ge:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp " << reg1 << ", " << reg2 << "\n";
+		o << "    cset " << dst_reg << ", ge\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case bitwise_and:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    and " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case bitwise_or:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    orr " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case bitwise_xor:
+	{
+		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    eor " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
+		o << "    str " << dst_reg << ", " << dst << "\n";
+		break;
+	}
+
+	case ret:
+		if (!params[0].empty() && params[0][0] == '$')
+		{
+			o << "    mov w0, #" << params[0].substr(1) << "\n";
+		}
+		else
+		{
+			// vérifier si la valeur a été produite dans w0
+			bool already_in_w0 = false;
+			if (!bb->instrs.empty() && bb->instrs.back() == this && bb->instrs.size() >= 2)
+			{
+				IRInstr *prev = bb->instrs[bb->instrs.size() - 2];
+				if ((prev->getOperation() == add || prev->getOperation() == sub || prev->getOperation() == mul) &&
+					prev->params[0] == params[0])
+				{
+					already_in_w0 = true;
+				}
+			}
+
+			if (!already_in_w0)
+				o << "    ldr w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		}
+		o << "    add sp, sp, #" << bb->cfg->stack_allocation << "\n";
+		o << "    ret\n";
+		break;
+
+	default:
+		o << "    // [ARM64] Instruction non supportée pour " << op << "\n";
 		break;
 	}
 }
@@ -297,10 +491,12 @@ void BasicBlock::add_IRInstr(IRInstr::Operation op, Type t, vector<string> param
 
 void BasicBlock::gen_asm(ostream &o)
 {
-	o << label << ":\n";
 	for (auto instr : instrs)
 	{
-		instr->gen_asm(o);
+		if (cfg->is_arm)
+			instr->gen_asm_arm(o);
+		else
+			instr->gen_asm(o);
 	}
 }
 
@@ -322,8 +518,33 @@ void CFG::gen_asm_epilogue(ostream &o)
 	o << "    ret\n";
 }
 
-void CFG::gen_asm(ostream &o)
+void CFG::gen_asm(std::ostream &o)
 {
+	if (is_arm)
+	{
+		o << "    .globl _main\n";
+		o << "    .p2align 2\n";
+		o << "_main:\n";
+		int total = -nextFreeSymbolIndex;
+		if (total % 16 != 0)
+			total += (16 - (total % 16));
+		stack_allocation = total;
+
+		o << "    sub sp, sp, #" << total << "\n";
+
+		currentST_index = 1;
+		for (auto bb : bbs)
+		{
+			for (auto instr : bb->instrs)
+			{
+				instr->gen_asm_arm(o);
+			}
+		}
+
+		return;
+	}
+
+	// X86 fallback
 #ifdef __APPLE__
 	o << ".globl _main\n";
 	o << "_main:\n";
@@ -331,11 +552,15 @@ void CFG::gen_asm(ostream &o)
 	o << ".globl main\n";
 	o << "main:\n";
 #endif
+
 	gen_asm_prologue(o);
+
+	currentST_index = 1;
 	for (auto bb : bbs)
 	{
 		bb->gen_asm(o);
 	}
+
 	gen_asm_epilogue(o);
 }
 
@@ -345,27 +570,26 @@ class IRGenerator : public ifccBaseVisitor
 public:
 	IRGenerator(CFG *cfg_) : cfg(cfg_)
 	{
-		cfg->current_bb = new BasicBlock(cfg, "entry");
-		cfg->add_bb(cfg->current_bb);
+		BasicBlock *current_bb = new BasicBlock(cfg, "entry");
+		cfg->current_bb = current_bb;
+		cfg->add_bb(current_bb);
 	}
 
-	antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override {
-		auto stmts = ctx->block()->stmt();
-		for (auto stmt : stmts) {
-			this->visit(stmt);
-	
-			// early return: si on a déjà rencontré 'ret'
-			if (!cfg->current_bb->instrs.empty()) {
-				IRInstr *last = cfg->current_bb->instrs.back();
-				if (last->getOperation() == IRInstr::ret) {
-					break;
-				}
-			}
-		}
-		return 0;
-	}
-	
-	
+	// antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override {
+	// 	auto stmts = ctx->block()->stmt();
+	// 	for (auto stmt : stmts) {
+	// 		this->visit(stmt);
+
+	// 		// early return: si on a déjà rencontré 'ret'
+	// 		if (!cfg->current_bb->instrs.empty()) {
+	// 			IRInstr *last = cfg->current_bb->instrs.back();
+	// 			if (last->getOperation() == IRInstr::ret) {
+	// 				break;
+	// 			}
+	// 		}
+	// 	}
+	// 	return 0;
+	// }
 
 	antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
 	{
@@ -377,7 +601,7 @@ public:
 		}
 		else
 		{
-			std::string temp = visit(ctx->expr());
+			std::string temp = visit(ctx->expr()).as<std::string>();
 			cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {temp});
 		}
 
@@ -386,11 +610,11 @@ public:
 
 	antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override
 	{
-		std::string varName = ctx->ID()->getText();
+		std::string varName = ctx->VAR()->getText();
 
 		if (ctx->expr())
 		{
-			std::string rhs = visit(ctx->expr());
+			std::string rhs = visit(ctx->expr()).as<std::string>();
 			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		}
 		else
@@ -404,15 +628,15 @@ public:
 
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
-		std::string varName = ctx->ID()->getText();
-		std::string rhs = visit(ctx->expr());
+		std::string varName = ctx->VAR()->getText();
+		std::string rhs = visit(ctx->expr()).as<std::string>();
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
-		return 0;
+		return rhs;
 	}
 
 	antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	{
-		return ctx->ID()->getText();
+		return ctx->VAR()->getText();
 	}
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
@@ -425,8 +649,8 @@ public:
 
 	antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0));
-		std::string rhs = visit(ctx->expr(1));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -440,8 +664,8 @@ public:
 
 	antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0));
-		std::string rhs = visit(ctx->expr(1));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -461,7 +685,7 @@ public:
 
 	antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
 	{
-		std::string operand = visit(ctx->expr());
+		std::string operand = visit(ctx->expr()).as<std::string>();
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -472,7 +696,7 @@ public:
 
 	antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override
 	{
-		std::string expr = visit(ctx->expr());
+		std::string expr = visit(ctx->expr()).as<std::string>();
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -483,15 +707,17 @@ public:
 
 	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0));
-		std::string rhs = visit(ctx->expr(1));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
+		int lhsType = cfg->get_var_type(lhs);
+		int rhsType = cfg->get_var_type(rhs);
 
-		// Utilise le getter pour accéder au SymbolType
-		map<string, Type> &symbolTypes = cfg->getSymbolType();
+		// // Utilise le getter pour accéder au SymbolType
+		// map<string, Type> &symbolTypes = cfg->getSymbolType();
 
-		Type lhsType = symbolTypes.count(lhs) ? symbolTypes[lhs] : INT;
-		Type rhsType = symbolTypes.count(rhs) ? symbolTypes[rhs] : INT;
+		// Type lhsType = symbolTypes.count(lhs) ? symbolTypes[lhs] : INT;
+		// Type rhsType = symbolTypes.count(rhs) ? symbolTypes[rhs] : INT;
 		Type effectiveType = (lhsType == CHAR || rhsType == CHAR) ? CHAR : INT;
 
 		std::string op = ctx->getText();
@@ -527,32 +753,50 @@ public:
 		return temp;
 	}
 
-	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override {
-	std::string lhs = visit(ctx->expr(0));
-	std::string rhs = visit(ctx->expr(1));
-	std::string result = cfg->create_new_tempvar(INT);
-	cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
-	return result;
-}
+	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override
+	{
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string result = cfg->create_new_tempvar(INT);
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
+		return result;
+	}
 
-	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override {
-		std::string lhs = visit(ctx->expr(0));
-		std::string rhs = visit(ctx->expr(1));
+	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override
+	{
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
 		return result;
 	}
 
-	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override {
-		std::string lhs = visit(ctx->expr(0));
-		std::string rhs = visit(ctx->expr(1));
+	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override
+	{
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
 		return result;
 	}
 
+	antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx)
+	{
+		// BasicBlock *current_bb = new BasicBlock(cfg, "label");
+		// current_bb->parent = cfg->current_bloc_index;
+		// cfg->add_bb(current_bb);
+		// int parent_index = cfg->current_bloc_index;
 
-	
+		cfg->last_ST_index += 1;
+		int parentST_index = cfg->currentST_index;
+		cfg->currentST_index = cfg->last_ST_index;
+		for (auto stmt : ctx->stmt())
+		{					   // iterate over each statement in the list
+			this->visit(stmt); // visit each statement (declaration, assignment, return)
+		}
+		cfg->currentST_index = parentST_index;
+		return 0;
+	}
 
 private:
 	CFG *cfg;

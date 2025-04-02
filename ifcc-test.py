@@ -21,10 +21,11 @@ def is_macos():
     return platform.system() == "Darwin"
 
 def gcc_cmd(cmd):
-    if is_macos():
-        return f"arch -x86_64 {cmd}"
+    if is_macos() and not args.arm:
+        return f"arch -x86_64 {cmd}" 
     else:
-        return cmd
+        return cmd 
+
 
 def run_command(string, logfile=None, toscreen=False):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
@@ -93,6 +94,9 @@ argparser.add_argument('-d','--debug',action="count",default=0,
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')
 argparser.add_argument('-c',action = "store_true", help='single-file mode: compile/assemble to machine code, but do not link')
 argparser.add_argument('-o','--output',metavar = 'OUTPUTNAME', help='single-file mode: write output to that file')
+argparser.add_argument('--arm', action="store_true",
+                       help='compile with ifcc using the ARM backend (for Macs or cross-testing)')
+
 
 args=argparser.parse_args()
 
@@ -286,12 +290,14 @@ for jobname in jobs:
     if gccstatus == 0:
         gccstatus = run_command(gcc_cmd("gcc -o exe-gcc asm-gcc.s"), "gcc-link.txt")
     if gccstatus == 0:
-        exegccstatus = run_command("./exe-gcc", "gcc-execute.txt")
+        run_command("./exe-gcc; echo $? > gcc-execute.txt")
         if args.verbose >= 2:
             dumpfile("gcc-execute.txt")
             
     ## IFCC compiler
-    ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc input.c > asm-ifcc.s', 'ifcc-compile.txt')
+    target_flag = "--arm" if args.arm else "" 
+    ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc input.c {target_flag} > asm-ifcc.s', 'ifcc-compile.txt')
+
     
     if gccstatus != 0 and ifccstatus != 0:
         ## ifcc correctly rejects invalid program -> test-case ok
@@ -312,7 +318,11 @@ for jobname in jobs:
         continue
     else:
         ## ifcc accepts to compile valid program -> let's link it
-        ldstatus = run_command(gcc_cmd("gcc -o exe-ifcc asm-ifcc.s"), "ifcc-link.txt")
+        if args.arm:
+            ldstatus = run_command("clang asm-ifcc.s -o exe-ifcc", "ifcc-link.txt")
+        else:
+            ldstatus = run_command(gcc_cmd("gcc -o exe-ifcc asm-ifcc.s"), "ifcc-link.txt")
+
 
         if ldstatus:
             print("TEST FAIL (your compiler produces incorrect assembly)")
@@ -325,7 +335,7 @@ for jobname in jobs:
     ## both compilers  did produce an  executable, so now we  run both
     ## these executables and compare the results.
         
-    run_command("./exe-ifcc", "ifcc-execute.txt")
+    run_command("./exe-ifcc; echo $? > ifcc-execute.txt")
     if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
         print("TEST FAIL (different results at execution)")
         all_ok=False

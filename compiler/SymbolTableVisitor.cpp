@@ -1,25 +1,29 @@
 #include "SymbolTableVisitor.h"
 
 antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx) {
-    std::string varName = ctx->ID()->getText();
+    std::string varName = ctx->VAR()->getText();
 
-    if (symbolTable.find(varName) != symbolTable.end()) {
-        std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée !" << std::endl;
+    // Vérifier si la variable existe déjà dans le scope courant
+    if (currentScope->contains(varName)) {
+        std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée dans ce scope !" << std::endl;
         exit(1);
     }
 
-    symbolTable[varName] = stackOffset;
+    // Insérer la variable avec l'offset actuel
+    currentScope->insert(varName, stackOffset,INT);
     stackOffset -= 4;  // Réserver 4 octets pour la variable
 
-    std::cout << "# Déclaration : " << varName << " -> " << symbolTable[varName] << " (%rbp)" << std::endl;
+    std::cout << "# Déclaration : " << varName << " -> " 
+              << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;
 
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
-    std::string varName = ctx->ID()->getText();
 
-    if (symbolTable.find(varName) == symbolTable.end()) {
+antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
+    std::string varName = ctx->VAR()->getText();
+
+    if (currentScope->get(varName).symbolOffset==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
@@ -37,13 +41,32 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
     return 0;
 }
 
-void SymbolTableVisitor::checkUnusedVariables() {
-    for (const auto& entry : symbolTable) {
-        const auto& varName = entry.first;
-        if (usedVariables.find(varName) == usedVariables.end()) {
-            std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
-        }
+antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    
+    SymbolTable * newSymbolTable = new SymbolTable();
+    newSymbolTable->parent = this->currentScope;
+    this->currentScope = newSymbolTable;
+    symbolTables.push_back(currentScope);
+    for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
+        this->visit(stmt);  // visit each statement (declaration, assignment, return)
     }
+    checkUnusedVariables();
+    currentScope = currentScope->parent;
+    
+    
+    return 0;
+}
+
+void SymbolTableVisitor::checkUnusedVariables() {
+    
+    // // Accéder à la table des symboles dans la portée actuelle
+    // const auto& symbolTable = currentScope->table;
+    // for (const auto& entry : symbolTable) {
+    //     const auto& varName = entry.first;
+    //     if (usedVariables.find(varName) == usedVariables.end()) {
+    //         std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
+    //     }
+    // }
 }
 
 
