@@ -34,7 +34,6 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
-	build/CodeGenVisitor.o \
 	build/SymbolTableVisitor.o
 
 ##########################################

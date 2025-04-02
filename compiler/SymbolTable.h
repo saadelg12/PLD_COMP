@@ -2,11 +2,18 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include "Type.h"
+
+typedef struct {
+    std::string symbolName;
+    int symbolOffset;
+    Type symbolType;
+}Symbol;
 
 class SymbolTable {
 public:
     SymbolTable* parent;  // Pointeur vers la table parent (nullptr si global)
-    std::map<std::string, int> table;  // Stocke les variables du bloc courant
+    std::map<std::string, Symbol> table;  // Stocke les variables du bloc courant
 
     // Constructeur par défaut
     SymbolTable() : parent(nullptr) {}
@@ -25,18 +32,24 @@ public:
     }
 
     // Insère une variable dans le scope courant
-    void insert(const std::string& varName, int offset) {
-        table[varName] = offset;
+    void insert(const std::string& varName, int offset,Type type) {
+        Symbol s;
+        s.symbolName = varName;
+        s.symbolOffset = offset;
+        s.symbolType=type;
+        table[varName] = s;
     }
 
     // Récupère la valeur d'une variable, en cherchant aussi dans les scopes parents
-    int get(const std::string& varName) {
+    Symbol get(const std::string& varName) {
         if (table.find(varName) != table.end()) {
             return table[varName];  // Trouvé dans le scope actuel
         }
         if (parent) {
             return parent->get(varName);  // Rechercher dans le parent
         }
-        return -1;  // Variable non trouvée
+        Symbol s;
+        s.symbolOffset = -1;
+        return s;
     }
 };

@@ -4,17 +4,17 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
     std::string varName = ctx->VAR()->getText();
 
     // Vérifier si la variable existe déjà dans le scope courant
-    if (currentScope.contains(varName)) {
+    if (currentScope->contains(varName)) {
         std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée dans ce scope !" << std::endl;
         exit(1);
     }
 
     // Insérer la variable avec l'offset actuel
-    currentScope.insert(varName, stackOffset);
+    currentScope->insert(varName, stackOffset,INT);
     stackOffset -= 4;  // Réserver 4 octets pour la variable
 
     std::cout << "# Déclaration : " << varName << " -> " 
-              << currentScope.get(varName) << " (%rbp)" << std::endl;
+              << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;
 
     return 0;
 }
@@ -23,7 +23,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
 
-    if (currentScope.get(varName)==-1) {
+    if (currentScope->get(varName).symbolOffset==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
@@ -43,24 +43,15 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
 
 antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     
-    
-    // Sauvegarde de l'ancien scope
-    SymbolTable previousScope = currentScope;
-    
-    // Nouveau scope pour ce bloc
-    currentScope = SymbolTable();
-    currentScope.parent = &previousScope;
-    
-    // Visiter toutes les instructions du bloc
-    for (auto stmt : ctx->stmt()) {
-        this->visit(stmt);
+    SymbolTable * newSymbolTable = new SymbolTable();
+    newSymbolTable->parent = this->currentScope;
+    this->currentScope = newSymbolTable;
+    symbolTables.push_back(currentScope);
+    for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
+        this->visit(stmt);  // visit each statement (declaration, assignment, return)
     }
-
-    // Vérifier les variables inutilisées avant de quitter le bloc
     checkUnusedVariables();
-
-    // Restauration de l'ancien scope
-    currentScope = previousScope;
+    currentScope = currentScope->parent;
     
     
     return 0;
@@ -68,14 +59,14 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
 void SymbolTableVisitor::checkUnusedVariables() {
     
-    // Accéder à la table des symboles dans la portée actuelle
-    const auto& symbolTable = currentScope.table;
-    for (const auto& entry : symbolTable) {
-        const auto& varName = entry.first;
-        if (usedVariables.find(varName) == usedVariables.end()) {
-            std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
-        }
-    }
+    // // Accéder à la table des symboles dans la portée actuelle
+    // const auto& symbolTable = currentScope->table;
+    // for (const auto& entry : symbolTable) {
+    //     const auto& varName = entry.first;
+    //     if (usedVariables.find(varName) == usedVariables.end()) {
+    //         std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
+    //     }
+    // }
 }
 
 
