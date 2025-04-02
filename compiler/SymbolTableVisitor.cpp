@@ -51,9 +51,25 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
         this->visit(stmt);  // visit each statement (declaration, assignment, return)
     }
     checkUnusedVariables();
-    currentScope = currentScope->parent;
+    currentScope = currentScope->parent;    
     
-    
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+    std::string functionName = ctx->VAR()->getText();
+
+    currentScope = new SymbolTable();  // Racine
+    functionSymbolTables[functionName].push_back(currentScope);
+    stackOffsets[functionName] = -4;
+    functions[functionName] = ctx->type()->getText();  // Type de la fonction
+
+    visit(ctx->block());
+
+    // // Optionnel : vérifications
+    // checkUnusedVariables(functionName);
+    // checkHasReturn();
+
     return 0;
 }
 

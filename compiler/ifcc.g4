@@ -17,6 +17,7 @@ block : '{' stmt* '}';
 stmt : declaration ';'
      | assignment ';'
      | return_stmt 
+     | functionCall ';'  
      | block ;
 
 declaration : 'int' VAR ('=' expr)? ;
@@ -27,6 +28,8 @@ assignment: VAR '=' expr ;
 return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
+
+functionCall : VAR '(' (expr (',' expr)*)? ')' ;
 
 expr
     : assignment                       # AssignementExpr 
@@ -39,6 +42,7 @@ expr
     | expr ('^') expr                # BitwiseXorExpr
     | expr ('|') expr                # BitwiseOrExpr
     | '(' expr ')'                       # ParExpr
+    | functionCall                      # FunctionCallExpr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
