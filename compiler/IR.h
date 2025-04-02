@@ -392,7 +392,7 @@ public:
 		}
 		else
 		{
-        	std::string temp = std::any_cast<std::string>(visit(ctx->expr())); 
+        	std::string temp = visit(ctx->expr()).as<std::string>(); 
 			cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {temp});
 		}
 
@@ -405,7 +405,7 @@ public:
 
 		if (ctx->expr())
 		{
-			std::string rhs = any_cast<std::string>(visit(ctx->expr()));
+			std::string rhs = visit(ctx->expr()).as<std::string>();
 			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		}
 		else
@@ -420,7 +420,7 @@ public:
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
 		std::string varName = ctx->VAR()->getText();
-		std::string rhs = any_cast<std::string>(visit(ctx->expr()));
+		std::string rhs = visit(ctx->expr()).as<std::string>();
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		return rhs;
 	}
@@ -440,8 +440,8 @@ public:
 
 	antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
 	{
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));  
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>();  
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -455,8 +455,8 @@ public:
 
 	antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
 	{
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -476,7 +476,7 @@ public:
 
 	antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
 	{
-		std::string operand = any_cast<std::string>(visit(ctx->expr()));
+		std::string operand = visit(ctx->expr()).as<std::string>();
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -487,7 +487,7 @@ public:
 
 	antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override
 	{
-		std::string expr = any_cast<std::string>(visit(ctx->expr()));
+		std::string expr = visit(ctx->expr()).as<std::string>();
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -498,8 +498,8 @@ public:
 
 	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
 	{
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		int lhsType = cfg->get_var_type(lhs);
 		int rhsType = cfg->get_var_type(rhs);
@@ -546,24 +546,24 @@ public:
 
 	
 	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override {
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
 		return result;
 	}
 
 	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override {
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
 		return result;
 	}
 
 	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override {
-		std::string lhs = any_cast<std::string>(visit(ctx->expr(0)));
-		std::string rhs = any_cast<std::string>(visit(ctx->expr(1)));
+		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
+		std::string rhs = visit(ctx->expr(1)).as<std::string>();
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
 		return result;
