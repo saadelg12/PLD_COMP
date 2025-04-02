@@ -35,6 +35,7 @@ public:
 		bitwise_and,
 		bitwise_or,
 		bitwise_xor,
+		call,
 		ret
 	};
 
@@ -277,6 +278,23 @@ void IRInstr::gen_asm(ostream &o)
 		o << "    mov" << s << " %eax, " << dst << "\n";
 		break;
 
+	case call:
+	{
+		const std::string& funcName = params[0];
+	
+		if (funcName == "putchar") {
+			std::string arg = bb->cfg->IR_reg_to_asm(params[1]);
+			o << "    movl " << arg << ", %edi\n";
+			o << "    call putchar\n";
+		}
+		else if (funcName == "getchar") {
+			std::string dst = bb->cfg->IR_reg_to_asm(params[1]);
+			o << "    call getchar\n";
+			o << "    movl %eax, " << dst << "\n";
+		}
+		break;
+	}
+
 	case ret:
 	{
 		const string &src = params[0];
@@ -392,7 +410,7 @@ public:
 		}
 		else
 		{
-        	std::string temp = visit(ctx->expr()).as<std::string>(); 
+        	std::string temp = std::any_cast<std::string>(visit(ctx->expr())); 
 			cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {temp});
 		}
 
@@ -405,7 +423,7 @@ public:
 
 		if (ctx->expr())
 		{
-			std::string rhs = visit(ctx->expr()).as<std::string>();
+			std::string rhs = std::any_cast<std::string>(visit(ctx->expr()));
 			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		}
 		else
@@ -420,7 +438,7 @@ public:
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
 		std::string varName = ctx->VAR()->getText();
-		std::string rhs = visit(ctx->expr()).as<std::string>();
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr()));
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
 		return rhs;
 	}
@@ -440,8 +458,8 @@ public:
 
 	antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();  
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0)));  
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -455,8 +473,8 @@ public:
 
 	antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0))); 
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 
 		std::string op = ctx->OP->getText();
@@ -476,7 +494,7 @@ public:
 
 	antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
 	{
-		std::string operand = visit(ctx->expr()).as<std::string>();
+		std::string operand = std::any_cast<std::string>(visit(ctx->expr()));
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -487,7 +505,7 @@ public:
 
 	antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override
 	{
-		std::string expr = visit(ctx->expr()).as<std::string>();
+		std::string expr = std::any_cast<std::string>(visit(ctx->expr()));
 		std::string zero = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
 
@@ -498,8 +516,8 @@ public:
 
 	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0))); 
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 		int lhsType = cfg->get_var_type(lhs);
 		int rhsType = cfg->get_var_type(rhs);
@@ -546,24 +564,24 @@ public:
 
 	
 	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override {
-		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0))); 
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
 		return result;
 	}
 
 	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override {
-		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0))); 
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
 		return result;
 	}
 
 	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override {
-		std::string lhs = visit(ctx->expr(0)).as<std::string>(); 
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
+		std::string lhs = std::any_cast<std::string>(visit(ctx->expr(0))); 
+		std::string rhs = std::any_cast<std::string>(visit(ctx->expr(1)));
 		std::string result = cfg->create_new_tempvar(INT);
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
 		return result;
@@ -586,6 +604,26 @@ public:
 		cfg->currentST_index = parentST_index;
 		return 0;
 	}
+
+
+	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override {
+		std::string funcName = ctx->FUNC()->getText();
+	
+		if (funcName == "putchar") {
+			std::string arg = std::any_cast<std::string>(visit(ctx->expr()));
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", arg});
+			return ""; // putchar renvoie un int, mais ici on ignore sa valeur
+		}
+		else if (funcName == "getchar") {
+			std::string dst = cfg->create_new_tempvar(INT);
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dst});
+			return dst; // on retourne le nom de la variable temporaire où est stocké le résultat
+		}
+		
+		// pour d'autres fonctions plus tard...
+		return 0;
+	}
+	
 
 private:
 	CFG *cfg;
