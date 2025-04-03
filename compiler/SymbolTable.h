@@ -43,7 +43,7 @@ public:
     // Récupère la valeur d'une variable, en cherchant aussi dans les scopes parents
     Symbol get(const std::string& varName) {
         if (table.find(varName) != table.end()) {
-            std::cout<<"get in SymbolTable"<<std::endl;
+            //std::cout<<"get in SymbolTable"<<std::endl;
             return table[varName];  // Trouvé dans le scope actuel
         }
         if (parent) {
