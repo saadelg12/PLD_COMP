@@ -710,6 +710,39 @@ public:
 		return 0;
 	}
 
+	antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+	{
+		
+		int bbs_size = cfg->bbs.size();
+		std::string condition_bb_label ="label" + to_string(bbs_size);
+		BasicBlock * condition_bb = new BasicBlock(cfg, condition_bb_label);
+		cfg->add_bb(condition_bb);
+		bbs_size = cfg->bbs.size();
+		std::string bb_true__label ="label" + to_string(bbs_size);
+		BasicBlock * bb_true = new BasicBlock(cfg, bb_true__label);
+		cfg->add_bb(bb_true);
+		bbs_size = cfg->bbs.size();
+		std::string bb_false_label ="label" + to_string(bbs_size);
+		BasicBlock * bb_false = new BasicBlock(cfg, bb_false_label);
+		cfg->add_bb(bb_false);
+		condition_bb->exit_true = bb_true;
+		condition_bb->exit_false = bb_false;
+		bb_false->exit = cfg->current_bb->exit;
+		bb_true->exit = condition_bb;
+		cfg->current_bb->exit = condition_bb;
+		cfg->current_bb->add_IRInstr(IRInstr::jump, INT, {condition_bb_label});
+		cfg->current_bb = condition_bb;
+		visit(ctx->expr());
+		cfg->current_bb->add_IRInstr(IRInstr::cond_jump, INT, {bb_true__label,bb_false_label});
+
+		cfg->current_bb = bb_true;
+		visit(ctx->block());
+		cfg->current_bb = bb_false;
+
+
+		return 0;
+	}
+
 private:
 	CFG *cfg;
 };
