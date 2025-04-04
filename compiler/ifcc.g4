@@ -10,7 +10,8 @@ stmt : declaration ';'
      | assignment ';'
      | expr ';'  // Permet d'écrire des expressions comme stmt
      | return_stmt 
-     | block ;
+     | block 
+     | if_stmt;
 
 declaration : 'int' VAR ('=' expr)? ;
 
@@ -21,6 +22,11 @@ return_stmt : RETURN expr ';' ;
 
 
 RETURN : 'return' ;
+if_stmt : IF '(' expr ')' block (ELSE block)? ;
+
+IF : 'if';
+ELSE: 'else';
+
 
 expr
     : function_call                     # FunctionCallExpr
