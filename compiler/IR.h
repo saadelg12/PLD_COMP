@@ -22,20 +22,25 @@ public:
 	enum Operation
 	{
 		ldconst,
+		ldvar,
 		copy,
 		add,
 		sub,
 		mul,
 		div,
 		mod,
+		neg,
 		cmp_eq,
+		cmp_expr,
 		cmp_lt,
 		cmp_le,
 		cmp_ge,
 		bitwise_and,
 		bitwise_or,
 		bitwise_xor,
-		ret
+		ret,
+		cond_jump,
+		jump
 	};
 
 	IRInstr(BasicBlock *bb_, Operation op, Type t, vector<string> params)
@@ -80,6 +85,8 @@ public:
 	vector<IRInstr *> instrs;
 	BasicBlock *exit_true = nullptr;
 	BasicBlock *exit_false = nullptr;
+	BasicBlock *exit = nullptr;
+	string test_var_name;
 };
 
 // ---------- GRAPHE DE CONTRÔLE ----------
@@ -99,20 +106,21 @@ public:
 	void gen_asm_prologue(ostream &o);
 	void gen_asm_epilogue(ostream &o);
 
-	string IR_reg_to_asm(const string &reg) const
+	string IR_reg_to_asm(string param) const
 	{
-		int offset = get_var_index(reg);
+		int offset = std::stoi(param);
+		int adjusted = -offset;
 		if (is_arm)
-			return "[sp, #" + to_string(offset + 16) + "]"; // stack offset + frame alloc
+			return "[sp, #" + to_string(offset) + "]";
 		else
-			return to_string(offset) + "(%rbp)";
+			return to_string(offset);
 	}
 
 	int get_var_index(const string &name) const
 	{
+		// cout<< "looking for  "<<name<< " IN  "<<currentST_index<<endl;
 		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
 		int res = current_symbol_table->get(name).symbolOffset;
-
 		return res;
 	}
 	Type get_var_type(const string &name) const
@@ -129,7 +137,9 @@ public:
 		s.symbolOffset = nextFreeSymbolIndex;
 		s.symbolType = t;
 		symbolTable.at(currentST_index)->table[name] = s;
+		// cout<< "creating "<<name<< " IN  "<<currentST_index<<endl;
 		nextFreeSymbolIndex -= 4;
+
 		return name;
 	}
 
@@ -138,14 +148,13 @@ public:
 	vector<BasicBlock *> bbs;
 	vector<SymbolTable *> symbolTable;
 	BasicBlock *current_bb;
+	int nextFreeSymbolIndex;
 
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
 
 private:
 	void *ast;
-
-	int nextFreeSymbolIndex;
 };
 
 // ---------- ASSEMBLEUR POUR IRInstr ----------
@@ -155,154 +164,153 @@ void IRInstr::gen_asm(ostream &o)
 	string s = suffix_for_type(t); // suffix for instruction based on type
 	string dst;
 
-	if (op != ret)
-	{
-		dst = bb->cfg->IR_reg_to_asm(params[0]);
-	}
+	// if (op != ret)
+	// {
+	// 	dst = bb->cfg->IR_reg_to_asm(params[0]);
+	// }
 
 	switch (op)
 	{
 	case ldconst:
-		o << "    mov" << s << " $" << params[1] << ", " << dst << "\n";
+		o << "    mov" << s << " $" << params[0] << ", %eax\n";
+		break;
+
+	case ldvar:
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
 		break;
 
 	case copy:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " %eax, " << params[0] << "(%rbp)\n";
 		break;
 
 	case add:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    add" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    add" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case sub:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    sub" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    sub" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mul:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    imul" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    imul" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case div:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
 		o << "    cltd\n";
-		o << "    idiv" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mod:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
 		o << "    cltd\n";
-		o << "    idiv" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    mov" << s << " %edx, " << dst << "\n";
+		o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
+		o << "    mov" << s << " %edx, %eax \n";
+		break;
+	case neg:
+		o << "    neg" << s << " %eax\n";
+		break;
+	case cmp_eq:
+		o << "    cmp" << s << " $0, %eax\n";
+		o << "    mov" << s << " $0, %eax\n";
+		o << "    sete %al\n";
 		break;
 
-	case cmp_eq:
-		if (t == CHAR)
-		{
-			o << "    movb " << bb->cfg->IR_reg_to_asm(params[1]) << ", %al\n";
-			o << "    cmpb " << bb->cfg->IR_reg_to_asm(params[2]) << ", %al\n";
-		}
-		else
-		{
-			o << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-			o << "    cmpl " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		}
-		o << "    sete %al\n";
+	case cmp_expr:
+		o << "    cmp" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    " << params[1] << " %al\n";
 		o << "    movzbl %al, %eax\n";
-		o << "    movl %eax, " << dst << "\n";
 		break;
 
 	case cmp_lt:
 		if (t == CHAR)
 		{
-			o << "    movb " << bb->cfg->IR_reg_to_asm(params[1]) << ", %al\n";
-			o << "    cmpb " << bb->cfg->IR_reg_to_asm(params[2]) << ", %al\n";
+			o << "    movb " << params[1] << ", %al\n";
+			o << "    cmpb " << params[2] << ", %al\n";
 		}
 		else
 		{
-			o << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-			o << "    cmpl " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
+			o << "    movl " << params[1] << ", %eax\n";
+			o << "    cmpl " << params[2] << ", %eax\n";
 		}
 		o << "    setl %al\n";
 		o << "    movzbl %al, %eax\n";
-		o << "    movl %eax, " << dst << "\n";
+		o << "    movl %eax, " << params[0] << "\n";
 		break;
 
 	case cmp_le:
 		if (t == CHAR)
 		{
-			o << "    movb " << bb->cfg->IR_reg_to_asm(params[1]) << ", %al\n";
-			o << "    cmpb " << bb->cfg->IR_reg_to_asm(params[2]) << ", %al\n";
+			o << "    movb " << params[1] << ", %al\n";
+			o << "    cmpb " << params[2] << ", %al\n";
 		}
 		else
 		{
-			o << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-			o << "    cmpl " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
+			o << "    movl " << params[1] << ", %eax\n";
+			o << "    cmpl " << params[2] << ", %eax\n";
 		}
 		o << "    setle %al\n";
 		o << "    movzbl %al, %eax\n";
-		o << "    movl %eax, " << dst << "\n";
+		o << "    movl %eax, " << params[0] << "\n";
 		break;
 
 	case cmp_ge:
 		if (t == CHAR)
 		{
-			o << "    movb " << bb->cfg->IR_reg_to_asm(params[1]) << ", %al\n";
-			o << "    cmpb " << bb->cfg->IR_reg_to_asm(params[2]) << ", %al\n";
+			o << "    movb " << params[1] << ", %al\n";
+			o << "    cmpb " << params[2] << ", %al\n";
 		}
 		else
 		{
-			o << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-			o << "    cmpl " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
+			o << "    movl " << params[1] << ", %eax\n";
+			o << "    cmpl " << params[2] << ", %eax\n";
 		}
 		o << "    setge %al\n";
 		o << "    movzbl %al, %eax\n";
-		o << "    movl %eax, " << dst << "\n";
+		o << "    movl %eax, " << params[0] << "\n";
 		break;
 
 	case bitwise_and:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    and" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    and" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case bitwise_or:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    or" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    or" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case bitwise_xor:
-		o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(params[1]) << ", %eax\n";
-		o << "    xor" << s << " " << bb->cfg->IR_reg_to_asm(params[2]) << ", %eax\n";
-		o << "    mov" << s << " %eax, " << dst << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    xor" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case ret:
 	{
-		const string &src = params[0];
-		if (!src.empty() && src[0] == '$')
-		{
-			o << "    movl " << src << ", %eax\n";
-		}
-		else
-		{
-			o << "    mov" << s << " " << bb->cfg->IR_reg_to_asm(src) << ", %eax\n";
-			if (s == "b")
-			{
-				o << "    movzbl %al, %eax\n"; // étend 8 bits → 32 bits
-			}
-		}
 		o << "    leave\n";
 		o << "    ret\n";
 		break;
+	}
+	case cond_jump:
+	{
+		o << "    test" << s << " %eax, %eax\n  ";
+		o << "    jz " << params[1] << "\n";  // 3. Saute si ZF=1 (valeur était 0)   ;
+		o << "    jnz " << params[0] << "\n"; // 3. Saute si ZF=0 (valeur était différente de 0)   ;
+		break;
+	}
+	case jump:
+	{
+		o << "    jmp " << params[0] << "\n";
 	}
 
 	default:
@@ -312,170 +320,135 @@ void IRInstr::gen_asm(ostream &o)
 
 void IRInstr::gen_asm_arm(std::ostream &o)
 {
-	string dst = bb->cfg->IR_reg_to_asm(params[0]);
-	string reg1 = "w1";
-	string reg2 = "w2";
-	string dst_reg = "w0";
-
-	bool is_last_instr = (bb->instrs.back() == this);
-	bool is_last_bb = (bb->cfg->bbs.back() == bb);
-	bool skip_store = is_last_instr && is_last_bb && bb->cfg->current_bb == bb;
+	string s = suffix_for_type(t);
+	string dst;
 
 	switch (op)
 	{
 	case ldconst:
-		o << "    mov " << dst_reg << ", #" << params[1] << "\n";
-		if (!skip_store)
-			o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    mov w0, #" << params[0] << "\n";
+		break;
+
+	case ldvar:
+		o << "    ldr w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
 		break;
 
 	case copy:
-		o << "    ldr " << dst_reg << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		if (!skip_store)
-			o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
 		break;
 
 	case add:
-	case sub:
-	case mul:
-	{
-		string op_instr = (op == add) ? "add" : (op == sub) ? "sub"
-															: "mul";
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    " << op_instr << " " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
-
-		// 💡 NE FAIS PAS DE STR si l’instruction suivante est un ret de la même variable
-		bool next_is_ret = false;
-		if (bb->instrs.size() >= 2)
-		{
-			IRInstr *next = bb->instrs[bb->instrs.size() - 1];
-			if (next->getOperation() == ret && next->params[0] == params[0])
-			{
-				next_is_ret = true;
-			}
-		}
-
-		if (!next_is_ret)
-			o << "    str " << dst_reg << ", " << dst << "\n";
-
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    add w0, w1, w2\n";
 		break;
-	}
+
+	case sub:
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    sub w0, w1, w2\n";
+		break;
+
+	case mul:
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    mul w0, w1, w2\n";
+		break;
 
 	case div:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    sdiv " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    sdiv w0, w1, w2\n";
 		break;
-	}
 
 	case mod:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    sdiv w3, " << reg1 << ", " << reg2 << "\n";
-		o << "    msub " << dst_reg << ", w3, " << reg2 << ", " << reg1 << " // w0 = lhs - (lhs / rhs) * rhs\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    sdiv w3, w1, w2\n";
+		o << "    msub w0, w3, w2, w1\n"; // mod = a - (a / b) * b
 		break;
-	}
+
+	case neg:
+		o << "    neg w0, w0\n";
+		break;
 
 	case cmp_eq:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    cmp " << reg1 << ", " << reg2 << "\n";
-		o << "    cset " << dst_reg << ", eq\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    cmp w0, #0\n";
+		o << "    cset w0, eq\n";
 		break;
-	}
+
+	case cmp_expr:
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    cmp w0, w1\n";
+		if (params[1] == "sete")
+			o << "    cset w0, eq\n";
+		else if (params[1] == "setne")
+			o << "    cset w0, ne\n";
+		else if (params[1] == "setlt" || params[1] == "setl")
+			o << "    cset w0, lt\n";
+		else if (params[1] == "setle")
+			o << "    cset w0, le\n";
+		else if (params[1] == "setge")
+			o << "    cset w0, ge\n";
+		else if (params[1] == "setg")
+			o << "    cset w0, gt\n";
+		break;
 
 	case cmp_lt:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    cmp " << reg1 << ", " << reg2 << "\n";
-		o << "    cset " << dst_reg << ", lt\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp w1, w2\n";
+		o << "    cset w0, lt\n";
+		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
 		break;
-	}
 
 	case cmp_le:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    cmp " << reg1 << ", " << reg2 << "\n";
-		o << "    cset " << dst_reg << ", le\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp w1, w2\n";
+		o << "    cset w0, le\n";
+		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
 		break;
-	}
 
 	case cmp_ge:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    cmp " << reg1 << ", " << reg2 << "\n";
-		o << "    cset " << dst_reg << ", ge\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		o << "    cmp w1, w2\n";
+		o << "    cset w0, ge\n";
+		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
 		break;
-	}
 
 	case bitwise_and:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    and " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    and w0, w1, w2\n";
 		break;
-	}
 
 	case bitwise_or:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    orr " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    orr w0, w1, w2\n";
 		break;
-	}
 
 	case bitwise_xor:
-	{
-		o << "    ldr " << reg1 << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr " << reg2 << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
-		o << "    eor " << dst_reg << ", " << reg1 << ", " << reg2 << "\n";
-		o << "    str " << dst_reg << ", " << dst << "\n";
+		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		o << "    eor w0, w1, w2\n";
 		break;
-	}
 
 	case ret:
-		if (!params[0].empty() && params[0][0] == '$')
-		{
-			o << "    mov w0, #" << params[0].substr(1) << "\n";
-		}
-		else
-		{
-			// vérifier si la valeur a été produite dans w0
-			bool already_in_w0 = false;
-			if (!bb->instrs.empty() && bb->instrs.back() == this && bb->instrs.size() >= 2)
-			{
-				IRInstr *prev = bb->instrs[bb->instrs.size() - 2];
-				if ((prev->getOperation() == add || prev->getOperation() == sub || prev->getOperation() == mul) &&
-					prev->params[0] == params[0])
-				{
-					already_in_w0 = true;
-				}
-			}
-
-			if (!already_in_w0)
-				o << "    ldr w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		}
 		o << "    add sp, sp, #" << bb->cfg->stack_allocation << "\n";
 		o << "    ret\n";
 		break;
 
-	default:
-		o << "    // [ARM64] Instruction non supportée pour " << op << "\n";
+	case cond_jump:
+		o << "    cmp w0, #0\n";
+		o << "    b.eq " << params[1] << "\n";
+		o << "    b " << params[0] << "\n";
+		break;
+
+	case jump:
+		o << "    b " << params[0] << "\n";
 		break;
 	}
 }
@@ -491,6 +464,7 @@ void BasicBlock::add_IRInstr(IRInstr::Operation op, Type t, vector<string> param
 
 void BasicBlock::gen_asm(ostream &o)
 {
+	o << this->label << ":\n";
 	for (auto instr : instrs)
 	{
 		if (cfg->is_arm)
@@ -509,7 +483,7 @@ void CFG::gen_asm_prologue(ostream &o)
 	int total = -nextFreeSymbolIndex;
 	if (total % 16 != 0)
 		total += (16 - (total % 16));
-	o << "    subq $" << total << ", %rsp\n";
+	o << "    subq $64, %rsp\n";
 }
 
 void CFG::gen_asm_epilogue(ostream &o)
@@ -525,6 +499,7 @@ void CFG::gen_asm(std::ostream &o)
 		o << "    .globl _main\n";
 		o << "    .p2align 2\n";
 		o << "_main:\n";
+
 		int total = -nextFreeSymbolIndex;
 		if (total % 16 != 0)
 			total += (16 - (total % 16));
@@ -533,12 +508,10 @@ void CFG::gen_asm(std::ostream &o)
 		o << "    sub sp, sp, #" << total << "\n";
 
 		currentST_index = 1;
+
 		for (auto bb : bbs)
 		{
-			for (auto instr : bb->instrs)
-			{
-				instr->gen_asm_arm(o);
-			}
+			bb->gen_asm(o); // Ça imprime les labels et les instructions
 		}
 
 		return;
@@ -561,7 +534,7 @@ void CFG::gen_asm(std::ostream &o)
 		bb->gen_asm(o);
 	}
 
-	gen_asm_epilogue(o);
+	// gen_asm_epilogue(o);
 }
 
 // ---------- IRGenerator ----------
@@ -575,209 +548,218 @@ public:
 		cfg->add_bb(current_bb);
 	}
 
-	// antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override {
-	// 	auto stmts = ctx->block()->stmt();
-	// 	for (auto stmt : stmts) {
-	// 		this->visit(stmt);
-
-	// 		// early return: si on a déjà rencontré 'ret'
-	// 		if (!cfg->current_bb->instrs.empty()) {
-	// 			IRInstr *last = cfg->current_bb->instrs.back();
-	// 			if (last->getOperation() == IRInstr::ret) {
-	// 				break;
-	// 			}
-	// 		}
-	// 	}
-	// 	return 0;
-	// }
-
 	antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
 	{
-		// Si c’est une constante, on la renvoie directement
-		if (auto constExpr = dynamic_cast<ifccParser::ConstExprContext *>(ctx->expr()))
-		{
-			std::string value = constExpr->CONST()->getText();
-			cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {"$" + value});
-		}
-		else
-		{
-			std::string temp = visit(ctx->expr()).as<std::string>();
-			cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {temp});
-		}
-
+		visit(ctx->expr());
+		cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {});
 		return 0;
 	}
 
 	antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override
 	{
+		// cout<<"visitDeclaration\n";
 		std::string varName = ctx->VAR()->getText();
-
+		string offset = to_string(cfg->get_var_index(varName));
+		Type type = cfg->get_var_type(varName);
 		if (ctx->expr())
 		{
-			std::string rhs = visit(ctx->expr()).as<std::string>();
-			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
+			visit(ctx->expr());
 		}
 		else
 		{
 			// Initialisation implicite à 0
-			cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {varName, "0"});
+			cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {"0"});
 		}
-
+		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
 		return 0;
 	}
 
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
+		// cout<<"visitAssignment\n";
 		std::string varName = ctx->VAR()->getText();
-		std::string rhs = visit(ctx->expr()).as<std::string>();
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {varName, rhs});
-		return rhs;
+		string offset = to_string(cfg->get_var_index(varName));
+		Type type = cfg->get_var_type(varName);
+		// std::string rhs = any_cast<std::string>(visit(ctx->expr()));
+		// string rhsOffset =  to_string(cfg->get_var_index(rhs)) + "(%rbp)";
+		antlrcpp::Any value = visit(ctx->expr());
+		// cout<<" varName" <<varName<<rhs <<"rhs "<< rhs<< endl ;
+		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+		return value;
 	}
 
 	antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	{
-		return ctx->VAR()->getText();
+		// return ctx->VAR()->getText();
+		std::string varName = ctx->VAR()->getText();
+		string offset = to_string(cfg->get_var_index(varName));
+		Type type = cfg->get_var_type(varName);
+		cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {offset});
+		return 0;
 	}
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	{
-		std::string temp = cfg->create_new_tempvar(INT);
+		// std::string temp = cfg->create_new_tempvar(INT);
+		// string offset =  to_string(cfg->get_var_index(temp))+ "(%rbp)";
 		std::string value = ctx->CONST()->getText();
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {temp, value});
-		return temp;
+		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {value});
+		return 0;
 	}
 
 	antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
+		// cout<<"visitAddSub\n";
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 
 		std::string op = ctx->OP->getText();
 		if (op == "+")
-			cfg->current_bb->add_IRInstr(IRInstr::add, INT, {result, lhs, rhs});
+			cfg->current_bb->add_IRInstr(IRInstr::add, INT, {leftOffset, rightOffset});
 		else
-			cfg->current_bb->add_IRInstr(IRInstr::sub, INT, {result, lhs, rhs});
+			cfg->current_bb->add_IRInstr(IRInstr::sub, INT, {leftOffset, rightOffset});
 
-		return result;
+		return 0;
 	}
 
 	antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
-
+		// cout<<"visitMulDiv\n";
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 		std::string op = ctx->OP->getText();
 		if (op == "*")
-			cfg->current_bb->add_IRInstr(IRInstr::mul, INT, {result, lhs, rhs});
+		{
+			cfg->current_bb->add_IRInstr(IRInstr::mul, INT, {leftOffset, rightOffset});
+		}
 		else if (op == "/")
-			cfg->current_bb->add_IRInstr(IRInstr::div, INT, {result, lhs, rhs});
+		{
+			cfg->current_bb->add_IRInstr(IRInstr::div, INT, {leftOffset, rightOffset});
+		}
 		else if (op == "%")
-			cfg->current_bb->add_IRInstr(IRInstr::mod, INT, {result, lhs, rhs});
-		return result;
+		{
+			cfg->current_bb->add_IRInstr(IRInstr::mod, INT, {leftOffset, rightOffset});
+		}
+		return 0;
 	}
 
 	antlrcpp::Any visitParExpr(ifccParser::ParExprContext *ctx) override
 	{
+		// cout<<"visitParExpr\n";
 		return visit(ctx->expr());
 	}
 
 	antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
 	{
-		std::string operand = visit(ctx->expr()).as<std::string>();
-		std::string zero = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
-
-		std::string result = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::sub, INT, {result, zero, operand});
-		return result;
+		// cout<<"visitNegateExpr\n";
+		visit(ctx->expr());
+		cfg->current_bb->add_IRInstr(IRInstr::neg, INT, {});
+		return 0;
 	}
 
 	antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override
 	{
-		std::string expr = visit(ctx->expr()).as<std::string>();
-		std::string zero = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {zero, "0"});
-
-		std::string cmp = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, INT, {cmp, expr, zero});
-		return cmp;
+		visit(ctx->expr());
+		cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, INT, {});
+		return 0;
 	}
 
 	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
-		int lhsType = cfg->get_var_type(lhs);
-		int rhsType = cfg->get_var_type(rhs);
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
 
-		// // Utilise le getter pour accéder au SymbolType
-		// map<string, Type> &symbolTypes = cfg->getSymbolType();
-
-		// Type lhsType = symbolTypes.count(lhs) ? symbolTypes[lhs] : INT;
-		// Type rhsType = symbolTypes.count(rhs) ? symbolTypes[rhs] : INT;
-		Type effectiveType = (lhsType == CHAR || rhsType == CHAR) ? CHAR : INT;
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::ldvar, INT, {leftOffset});
 
 		std::string op = ctx->getText();
+		std::string setInstr;
 
-		if (op.find("==") != string::npos)
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, effectiveType, {result, lhs, rhs});
-		else if (op.find("!=") != string::npos)
-		{
-			std::string tmp = cfg->create_new_tempvar(effectiveType);
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, effectiveType, {tmp, lhs, rhs});
-			cfg->current_bb->add_IRInstr(IRInstr::ldconst, effectiveType, {result, "1"});
-			cfg->current_bb->add_IRInstr(IRInstr::sub, effectiveType, {result, result, tmp});
-		}
-		else if (op.find("<=") != string::npos)
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_le, effectiveType, {result, lhs, rhs});
-		else if (op.find(">=") != string::npos)
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_ge, effectiveType, {result, lhs, rhs});
-		else if (op.find("<") != string::npos)
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_lt, effectiveType, {result, lhs, rhs});
-		else if (op.find(">") != string::npos)
-			cfg->current_bb->add_IRInstr(IRInstr::cmp_lt, effectiveType, {result, rhs, lhs});
+		if (op.find("==") != std::string::npos)
+			setInstr = "sete";
+		else if (op.find("!=") != std::string::npos)
+			setInstr = "setne";
+		else if (op.find("<=") != std::string::npos)
+			setInstr = "setle";
+		else if (op.find(">=") != std::string::npos)
+			setInstr = "setge";
+		else if (op.find("<") != std::string::npos)
+			setInstr = "setl";
+		else if (op.find(">") != std::string::npos)
+			setInstr = "setg";
 
-		return result;
+		cfg->current_bb->add_IRInstr(IRInstr::cmp_expr, INT, {rightOffset, setInstr});
+
+		return 0;
 	}
 
 	antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override
 	{
-		std::string temp = cfg->create_new_tempvar(CHAR);
+
 		std::string text = ctx->CHAR()->getText(); // exemple : 'A'
 		char c = text[1];						   // le caractère réel entre les apostrophes
-		int asciiValue = static_cast<int>(c);
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, CHAR, {temp, std::to_string(asciiValue)});
-		return temp;
+		string asciiValue = to_string(static_cast<int>(c));
+		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {asciiValue});
+		return 0;
 	}
 
 	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {result, lhs, rhs});
-		return result;
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {leftOffset, rightOffset});
+		return 0;
 	}
 
 	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {result, lhs, rhs});
-		return result;
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {leftOffset, rightOffset});
+		return 0;
 	}
 
 	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override
 	{
-		std::string lhs = visit(ctx->expr(0)).as<std::string>();
-		std::string rhs = visit(ctx->expr(1)).as<std::string>();
-		std::string result = cfg->create_new_tempvar(INT);
-		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {result, lhs, rhs});
-		return result;
+		visit(ctx->expr(0));
+		cfg->nextFreeSymbolIndex -= 4;
+		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		visit(ctx->expr(1));
+		cfg->nextFreeSymbolIndex -= 4;
+		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {leftOffset, rightOffset});
+		return 0;
 	}
 
 	antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx)
@@ -791,10 +773,107 @@ public:
 		int parentST_index = cfg->currentST_index;
 		cfg->currentST_index = cfg->last_ST_index;
 		for (auto stmt : ctx->stmt())
-		{					   // iterate over each statement in the list
-			this->visit(stmt); // visit each statement (declaration, assignment, return)
+		{
+			this->visit(stmt);
 		}
 		cfg->currentST_index = parentST_index;
+		if (cfg->current_bb->exit)
+		{
+			cfg->current_bb->add_IRInstr(IRInstr::jump, INT, {cfg->current_bb->exit->label});
+		}
+
+		return 0;
+	}
+
+	antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx)
+	{
+		
+		//if (truc = true ) : jump vers le if bloc sinon vers le else bloc
+		// cfg->current_bb->test_var_name = any_cast<std::string>(visit(ctx->expr()));
+		// string offset =  to_string(cfg->get_var_index(cfg->current_bb->test_var_name))+ "(%rbp)";
+		visit(ctx->expr());
+		int bbs_size = cfg->bbs.size();
+
+		std::string if_label ="label" + to_string(bbs_size);
+		BasicBlock * true_exit_bb = new BasicBlock(cfg, if_label);
+		BasicBlock * previous_bb = cfg->current_bb;
+		cfg->current_bb->exit_true = true_exit_bb;
+		cfg->current_bb = true_exit_bb;
+		cfg->add_bb(true_exit_bb);
+		
+		
+		if (ctx->block(1))
+		{
+			bbs_size = cfg->bbs.size();
+			string else_label = "label" + to_string(bbs_size);
+			BasicBlock * false_exit_bb = new BasicBlock(cfg, else_label);
+			previous_bb->exit_false = false_exit_bb;
+			cfg->add_bb(false_exit_bb);
+			
+		}
+		else{
+			previous_bb->exit_false = nullptr;
+		}
+		bbs_size = cfg->bbs.size();
+		string next_label = "label" + to_string(bbs_size);
+		BasicBlock * next_bb = new BasicBlock(cfg, next_label);
+		cfg->add_bb(next_bb);
+
+		previous_bb->exit_true->exit = next_bb;
+		if(previous_bb->exit_false) {previous_bb->exit_false->exit = next_bb;}
+		next_bb->exit = previous_bb->exit;
+		
+		visit(ctx->block(0));
+		if(previous_bb->exit_false){
+			cfg->current_bb = previous_bb->exit_false;
+			visit(ctx->block(1));
+		}
+		
+		cfg->current_bb = next_bb;
+		
+		std::string else_or_next_label;
+		if(previous_bb->exit_false){
+			else_or_next_label = previous_bb->exit_false->label;
+		}else{
+			 else_or_next_label = next_bb->label;
+		}
+		
+		previous_bb->add_IRInstr(IRInstr::cond_jump, INT, {if_label,else_or_next_label});
+		
+		
+		return 0;
+	}
+
+	antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+	{
+		
+		int bbs_size = cfg->bbs.size();
+		std::string condition_bb_label ="label" + to_string(bbs_size);
+		BasicBlock * condition_bb = new BasicBlock(cfg, condition_bb_label);
+		cfg->add_bb(condition_bb);
+		bbs_size = cfg->bbs.size();
+		std::string bb_true__label ="label" + to_string(bbs_size);
+		BasicBlock * bb_true = new BasicBlock(cfg, bb_true__label);
+		cfg->add_bb(bb_true);
+		bbs_size = cfg->bbs.size();
+		std::string bb_false_label ="label" + to_string(bbs_size);
+		BasicBlock * bb_false = new BasicBlock(cfg, bb_false_label);
+		cfg->add_bb(bb_false);
+		condition_bb->exit_true = bb_true;
+		condition_bb->exit_false = bb_false;
+		bb_false->exit = cfg->current_bb->exit;
+		bb_true->exit = condition_bb;
+		cfg->current_bb->exit = condition_bb;
+		cfg->current_bb->add_IRInstr(IRInstr::jump, INT, {condition_bb_label});
+		cfg->current_bb = condition_bb;
+		visit(ctx->expr());
+		cfg->current_bb->add_IRInstr(IRInstr::cond_jump, INT, {bb_true__label,bb_false_label});
+
+		cfg->current_bb = bb_true;
+		visit(ctx->block());
+		cfg->current_bb = bb_false;
+
+
 		return 0;
 	}
 

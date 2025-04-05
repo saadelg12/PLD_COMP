@@ -9,7 +9,9 @@ block : '{' stmt* '}' ;
 stmt : declaration ';'
      | assignment ';'
      | return_stmt 
-     | block ;
+     | block 
+     | if_stmt
+     | while_stmt;
 
 declaration : 'int' VAR ('=' expr)? ;
 
@@ -19,6 +21,13 @@ assignment: VAR '=' expr ;
 return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
+if_stmt : IF '(' expr ')' block (ELSE block)? ;
+while_stmt : WHILE '(' expr ')' block;
+
+IF : 'if';
+ELSE: 'else';
+WHILE : 'while';
+
 
 expr
     : assignment                       # AssignementExpr 
