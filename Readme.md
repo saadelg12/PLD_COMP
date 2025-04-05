@@ -18,12 +18,12 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 | **Opérateurs unaires `!`, `-`** | ✅ Implémenté | `NegateExpr`, `NotExpr` |
 | **Déclaration de variables n'importe où** | ✅ Implémenté | Géré dans la grammaire |
 | **Affectation (= retourne une valeur)** | ✅ Implémenté | Stockée mais pas encore utilisée comme valeur |
-| **Entrées-sorties (`putchar`, `getchar`)** | ❌ | Aucun appel système ou standard |
+| **Entrées-sorties (`putchar`, `getchar`)** | ✅ Implémenté  |  |
 | **Définition de fonctions avec paramètres** | ❌ Non implémenté | Uniquement `main()` supporté |
 | **Vérification des appels de fonctions** | ❌ Non implémenté | Aucune vérification d'arguments |
 | **Structure de blocs `{}`** | ✅ Implémenté | Reconnue par la grammaire |
 | **Support des portées et shadowing** | ✅ Implémenté | Table des symboles globale |
-| **Structures `if`, `else`, `while`** | ❌ Non implémenté | Pas encore dans la grammaire |
+| **Structures `if`, `else`, `while`** | ✅ Implémenté  | Pas encore dans la grammaire |
 | **`return` n'importe où** | ✅ Implémenté | Vérifié avec `checkHasReturn()` |
 | **Vérification : variable utilisée déclarée** | ✅ Implémenté | `visitVarExpr()` avec erreur si inconnue |
 | **Vérification : double déclaration** | ✅ Implémenté | Détection dans `visitDeclaration()` |

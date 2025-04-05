@@ -40,6 +40,7 @@ public:
 		bitwise_xor,
 		ret,
 		cond_jump,
+		call,
 		jump
 	};
 
@@ -311,6 +312,23 @@ void IRInstr::gen_asm(ostream &o)
 	case jump:
 	{
 		o << "    jmp " << params[0] << "\n";
+	}
+	
+	case call:
+	{
+		const std::string& funcName = params[0];
+	
+		if (funcName == "putchar") {
+			std::string arg = bb->cfg->IR_reg_to_asm(params[1]);
+			o << "    movl " << arg << ", %edi\n";
+			o << "    call putchar\n";
+		}
+		else if (funcName == "getchar") {
+			std::string dst = bb->cfg->IR_reg_to_asm(params[1]);
+			o << "    call getchar\n";
+			o << "    movl %eax, " << dst << "\n";
+		}
+		break;
 	}
 
 	default:
@@ -876,6 +894,30 @@ public:
 
 		return 0;
 	}
+
+	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override {
+		std::string funcName = ctx->VAR()->getText();
+	
+		if (funcName == "putchar") {
+			visit(ctx->expr(0));
+	
+			std::string temp = cfg->create_new_tempvar(INT);
+			std::string offset = cfg->IR_reg_to_asm(temp);  // -4(%rbp) ou autre
+			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset});
+	
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", temp});
+			return 0;
+		}
+		else if (funcName == "getchar") {
+			cfg->nextFreeSymbolIndex -= 4;
+			std::string dstOffset = to_string(cfg->nextFreeSymbolIndex) + "(%rbp)";
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dstOffset});
+			// Il faut retourner dstOffset, sinon on ne peut pas le réutiliser dans l'affectation !
+			return dstOffset;
+		}
+	
+		return 0;
+	}	
 
 private:
 	CFG *cfg;

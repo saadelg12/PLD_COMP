@@ -15,7 +15,6 @@ stmt : declaration ';'
 
 declaration : 'int' VAR ('=' expr)? ;
 
-
 assignment: VAR '=' expr ;
 
 return_stmt : RETURN expr ';' ;
@@ -28,24 +27,26 @@ IF : 'if';
 ELSE: 'else';
 WHILE : 'while';
 
-
 expr
-    : assignment                       # AssignementExpr 
+    : function_call                     # FunctionCallExpr
+    | assignment                        # AssignementExpr 
     | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
-    | expr OP=('*' | '/' | '%') expr     # MulDiv
-    | expr OP=('+' | '-') expr           # AddSub
+    | expr OP=('*' | '/' | '%') expr    # MulDiv
+    | expr OP=('+' | '-') expr          # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr   # CmpExpr
-    | expr ('&') expr                # BitwiseAndExpr
-    | expr ('^') expr                # BitwiseXorExpr
-    | expr ('|') expr                # BitwiseOrExpr
-    | '(' expr ')'                       # ParExpr
+    | expr '&' expr                     # BitwiseAndExpr
+    | expr '^' expr                     # BitwiseXorExpr
+    | expr '|' expr                     # BitwiseOrExpr
+    | '(' expr ')'                      # ParExpr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
     ;
 
-VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
+function_call : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
+
+VAR : [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;
 CHAR : '\'' . '\'' ;
 
