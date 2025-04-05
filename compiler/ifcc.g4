@@ -11,7 +11,8 @@ stmt : declaration ';'
      | expr ';'  // Permet d'écrire des expressions comme stmt
      | return_stmt 
      | block 
-     | if_stmt;
+     | if_stmt
+     | while_stmt;
 
 declaration : 'int' VAR ('=' expr)? ;
 
@@ -23,9 +24,11 @@ return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 if_stmt : IF '(' expr ')' block (ELSE block)? ;
+while_stmt : WHILE '(' expr ')' block;
 
 IF : 'if';
 ELSE: 'else';
+WHILE : 'while';
 
 
 expr

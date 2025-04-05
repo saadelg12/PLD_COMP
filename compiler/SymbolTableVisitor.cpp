@@ -15,26 +15,38 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
 
     std::cout << "# Déclaration : " << varName << " -> " 
               << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;
-
+    if(ctx->expr()){
+        this->visit(ctx->expr()); 
+    }
+    
     return 0;
 }
 
-
-antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
+antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
     std::string varName = ctx->VAR()->getText();
-
-    if (currentScope->get(varName).symbolOffset==-1) {
+    Symbol var = currentScope->get(varName);
+    if (var.symbolOffset==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
+    this->visit(ctx->expr()); 
+    return 0;
+}
 
-    usedVariables.insert(varName);
+antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
+    std::string varName = ctx->VAR()->getText();
+    Symbol var = currentScope->get(varName);
+    if (var.symbolOffset==-1) {
+        std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
+        exit(1);
+    }
+    usedVariables.insert(var.symbolOffset);
     return 0;
 }
 
 
 antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
-    if (not hasReturn) {
+    if (hasReturn==false) {
         hasReturn = true;
     } 
     this->visit(ctx->expr()); // Visiter l'expression à retourner
@@ -58,21 +70,23 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 }
 
 void SymbolTableVisitor::checkUnusedVariables() {
-    
-    // // Accéder à la table des symboles dans la portée actuelle
-    // const auto& symbolTable = currentScope->table;
-    // for (const auto& entry : symbolTable) {
-    //     const auto& varName = entry.first;
-    //     if (usedVariables.find(varName) == usedVariables.end()) {
-    //         std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
-    //     }
-    // }
+    // Accéder à la table des symboles dans la portée actuelle
+    if(currentScope==nullptr) return;
+    const auto& symbolTable = currentScope->table;
+    for (const auto& entry : symbolTable) {
+        const auto& var = entry.second;
+        int found = 0;
+        if (usedVariables.find(var.symbolOffset) == usedVariables.end()) {
+            std::cout << "# Avertissement : Variable '" << var.symbolName << "' déclarée mais jamais utilisée !" << std::endl;
+            
+        }
+        
+    }
 }
 
 
 void SymbolTableVisitor::checkHasReturn() {
-    if (not hasReturn) {
+    if (hasReturn==false) {
         std::cerr << "# Avertissement : Fonction sans `return` !" << std::endl;
-        exit(1);
     }
 }
