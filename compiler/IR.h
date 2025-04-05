@@ -728,44 +728,29 @@ public:
 		return 0;
 	}
 
-
 	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override {
 		std::string funcName = ctx->FUNC()->getText();
 	
 		if (funcName == "putchar") {
-			std::string arg = std::any_cast<std::string>(visit(ctx->expr()));
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", arg});
-			return ""; // putchar renvoie un int, mais ici on ignore sa valeur
+			visit(ctx->expr());  // Met la valeur dans %eax
+	
+			std::string temp = cfg->create_new_tempvar(INT);
+			std::string offset = cfg->IR_reg_to_asm(temp);  // -4(%rbp) ou autre
+			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset});
+	
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", temp});
+			return 0;
 		}
 		else if (funcName == "getchar") {
-			std::string dst = cfg->create_new_tempvar(INT);
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dst});
-			return dst; // on retourne le nom de la variable temporaire où est stocké le résultat
+			cfg->nextFreeSymbolIndex -= 4;
+			std::string dstOffset = to_string(cfg->nextFreeSymbolIndex) + "(%rbp)";
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dstOffset});
+			// Il faut retourner dstOffset, sinon on ne peut pas le réutiliser dans l'affectation !
+			return dstOffset;
 		}
-		
-		// pour d'autres fonctions plus tard...
-		return 0;
-	}
 	
-
-
-	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override {
-		std::string funcName = ctx->FUNC()->getText();
-	
-		if (funcName == "putchar") {
-			std::string arg = std::any_cast<std::string>(visit(ctx->expr()));
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", arg});
-			return ""; // putchar renvoie un int, mais ici on ignore sa valeur
-		}
-		else if (funcName == "getchar") {
-			std::string dst = cfg->create_new_tempvar(INT);
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dst});
-			return dst; // on retourne le nom de la variable temporaire où est stocké le résultat
-		}
-		
-		// pour d'autres fonctions plus tard...
 		return 0;
-	}
+	}			
 	
 
 private:
