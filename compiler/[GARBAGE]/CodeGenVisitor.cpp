@@ -28,11 +28,11 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx)
 {   
     std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable
-    int offset = currentScope->get(varName);
+    int offset = (*symbolTable)[varName]; 
     if (ctx->expr()) {
         visit(ctx->expr());
         std::cout << "    movl %eax, " << offset << "(%rbp)   # Initialisation de " << varName << "\n"; 
-    }         
+        }         
     
     return 0;
 }
@@ -40,13 +40,11 @@ antlrcpp::Any CodeGenVisitor::visitDeclaration(ifccParser::DeclarationContext *c
 antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
     std::string varName = ctx->VAR()->getText();  // Récupérer le nom de la variable assignée
 
-    int offset = currentScope->get(varName);
+    int offset = (*symbolTable)[varName];  // On suppose que `symbolTable` est déjà valide. On récupére l'offset
     
-    antlrcpp::Any value = visit(ctx->expr());  // On visite l'expression à droite et récupère sa valeur
-
-    std::cout << "    movl %eax, " << offset << "(%rbp)   # Affectation de " << varName << "\n";
-
-    return value;
+    visit(ctx->expr());  // Visiter l'expression à droite de l'opérateur d'assignation
+    std::cout << "    movl %eax, " << offset << "(%rbp)   # Copier la valeur dans " << varName << "\n";  
+    return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
@@ -58,10 +56,9 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
-    int offset = currentScope->get(varName);
-    if( offset != -1){
-        std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
-    }
+    int offset = (*symbolTable)[varName];
+
+    std::cout << "    movl " << offset << "(%rbp), %eax   # Charger " << varName << " dans %eax\n";
     return 0;
 }
 
@@ -194,7 +191,7 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *ctx) {
+antlrcpp::Any CodeGenVisitor::visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) {
     // Visiter partie gauche %eax
     visit(ctx->expr(0));
     tempVarOffset -= 4;
@@ -209,30 +206,46 @@ antlrcpp::Any CodeGenVisitor::visitBitwiseExpr(ifccParser::BitwiseExprContext *c
 
     // Recharger lhs
     std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
-
-    // Trouver l'opérateur entre les deux enfants
-    std::string op = ctx->getText();
-    if (op.find("&") != std::string::npos) {
-        std::cout << "    andl " << rightOffset << "(%rbp), %eax   # lhs & rhs\n";
-    } else if (op.find("|") != std::string::npos) {
-        std::cout << "    orl " << rightOffset << "(%rbp), %eax   # lhs | rhs\n";
-    } else if (op.find("^") != std::string::npos) {
-        std::cout << "    xorl " << rightOffset << "(%rbp), %eax   # lhs ^ rhs\n";
-    }
+    std::cout << "    andl " << rightOffset << "(%rbp), %eax   # lhs & rhs\n";
 
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) 
-{
-    SymbolTable * newSymbolTable = new SymbolTable();
-    newSymbolTable->parent = this->currentScope;
-    this->currentScope = newSymbolTable;
-    
-    for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
-        this->visit(stmt);  // visit each statement (declaration, assignment, return)
-    }
-    currentScope = currentScope->parent;
-    delete newSymbolTable;
+antlrcpp::Any CodeGenVisitor::visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) {
+    // Visiter partie gauche %eax
+    visit(ctx->expr(0));
+    tempVarOffset -= 4;
+    int leftOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << leftOffset << "(%rbp)   # Save lhs into temp\n";
+
+    // Visiter partie droite %eax
+    visit(ctx->expr(1));
+    tempVarOffset -= 4;
+    int rightOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << rightOffset << "(%rbp)   # Save rhs into temp\n";
+
+    // Recharger lhs
+    std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
+    std::cout << "    xorl " << rightOffset << "(%rbp), %eax   # lhs ^ rhs\n";
+
+    return 0;
+}
+antlrcpp::Any CodeGenVisitor::visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) {
+    // Visiter partie gauche %eax
+    visit(ctx->expr(0));
+    tempVarOffset -= 4;
+    int leftOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << leftOffset << "(%rbp)   # Save lhs into temp\n";
+
+    // Visiter partie droite %eax
+    visit(ctx->expr(1));
+    tempVarOffset -= 4;
+    int rightOffset = tempVarOffset;
+    std::cout << "    movl %eax, " << rightOffset << "(%rbp)   # Save rhs into temp\n";
+
+    // Recharger lhs
+    std::cout << "    movl " << leftOffset << "(%rbp), %eax\n";
+    std::cout << "    orl " << rightOffset << "(%rbp), %eax   # lhs | rhs\n";
+
     return 0;
 }

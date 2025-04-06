@@ -17,13 +17,13 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 | **Comparaisons `==`, `!=`, `<`, `>`, `<=`, `>=`** | ✅ Implémenté | `visitCmpExpr()` avec `set*` |
 | **Opérateurs unaires `!`, `-`** | ✅ Implémenté | `NegateExpr`, `NotExpr` |
 | **Déclaration de variables n'importe où** | ✅ Implémenté | Géré dans la grammaire |
-| **Affectation (= retourne une valeur)** | ⚠️ *Partiellement* | Stockée mais pas encore utilisée comme valeur |
-| **Entrées-sorties (`putchar`, `getchar`)** | ❌ Non implémenté | Aucun appel système ou standard |
+| **Affectation (= retourne une valeur)** | ✅ Implémenté | Stockée mais pas encore utilisée comme valeur |
+| **Entrées-sorties (`putchar`, `getchar`)** | ✅ Implémenté  |  |
 | **Définition de fonctions avec paramètres** | ❌ Non implémenté | Uniquement `main()` supporté |
 | **Vérification des appels de fonctions** | ❌ Non implémenté | Aucune vérification d'arguments |
 | **Structure de blocs `{}`** | ✅ Implémenté | Reconnue par la grammaire |
-| **Support des portées et shadowing** | ❌ Non implémenté | Table des symboles globale |
-| **Structures `if`, `else`, `while`** | ❌ Non implémenté | Pas encore dans la grammaire |
+| **Support des portées et shadowing** | ✅ Implémenté | Table des symboles globale |
+| **Structures `if`, `else`, `while`** | ✅ Implémenté  | Pas encore dans la grammaire |
 | **`return` n'importe où** | ✅ Implémenté | Vérifié avec `checkHasReturn()` |
 | **Vérification : variable utilisée déclarée** | ✅ Implémenté | `visitVarExpr()` avec erreur si inconnue |
 | **Vérification : double déclaration** | ✅ Implémenté | Détection dans `visitDeclaration()` |
@@ -35,7 +35,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 
 | Fonctionnalité | État | Détails |
 |----------------|------|---------|
-| **Reciblage (x86, MSP430, ARM)** | ❌ Non implémenté | Cible uniquement x86-64 |
+| **Reciblage (x86, MSP430, ARM)** | EN COURS | Cible uniquement x86-64 |
 | **`double` et conversions** | ❌ Non implémenté | Aucun support pour types flottants |
 | **Propagation de constantes** | ❌ Non implémenté | Pas d’optimisation `1+2 → 3` |
 | **Propagation de variables constantes** | ❌ Non implémenté | Pas d’analyse de data-flow |

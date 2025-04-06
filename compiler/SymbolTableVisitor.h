@@ -43,3 +43,4 @@ public:
     std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
     int getStackOffset() const { return stackOffset; } // Retourne l'offset
 };
+
