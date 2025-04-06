@@ -107,15 +107,24 @@ public:
 	void gen_asm_prologue(ostream &o);
 	void gen_asm_epilogue(ostream &o);
 
-	string IR_reg_to_asm(string param) const
-	{
-		int offset = std::stoi(param);
-		int adjusted = -offset;
+	string IR_reg_to_asm(string param) const {
+		// Si c'est un offset explicite (ex: "-4"), on le traite directement
+		if (std::all_of(param.begin(), param.end(), [](char c) { return std::isdigit(c) || c == '-'; })) {
+			int offset = std::stoi(param);
+			if (is_arm)
+				return "[sp, #" + to_string(-offset) + "]"; // ARM utilise des offsets positifs
+			else
+				return to_string(offset) + "(%rbp)";        // X86 utilise des offsets négatifs
+		}
+	
+		// Sinon, c'est un nom de variable ou de temporaire, on cherche son offset dans la symbol table
+		int offset = get_var_index(param);
 		if (is_arm)
-			return "[sp, #" + to_string(offset) + "]";
+			return "[sp, #" + to_string(-offset) + "]";
 		else
-			return to_string(offset);
+			return to_string(offset) + "(%rbp)";
 	}
+	
 
 	int get_var_index(const string &name) const
 	{
@@ -132,17 +141,22 @@ public:
 
 	string create_new_tempvar(Type t)
 	{
-		string name = "!tmp" + to_string(-nextFreeSymbolIndex);
+		// On utilise directement l'offset actuel
+		int offset = nextFreeSymbolIndex;
+
+		// On enregistre ce symbole dans la table, même si on n'utilise plus son nom
 		Symbol s;
-		s.symbolName = name;
-		s.symbolOffset = nextFreeSymbolIndex;
+		s.symbolName = to_string(offset); // utile uniquement pour traçage/debug éventuel
+		s.symbolOffset = offset;
 		s.symbolType = t;
-		symbolTable.at(currentST_index)->table[name] = s;
-		// cout<< "creating "<<name<< " IN  "<<currentST_index<<endl;
+		symbolTable.at(currentST_index)->table[s.symbolName] = s;
+
 		nextFreeSymbolIndex -= 4;
 
-		return name;
+		// On retourne l'offset en string pour l'utiliser directement dans l'IR
+		return to_string(offset);
 	}
+
 
 	int currentST_index;
 	int last_ST_index;
@@ -317,7 +331,7 @@ void IRInstr::gen_asm(ostream &o)
 	case call:
 	{
 		const std::string& funcName = params[0];
-	
+
 		if (funcName == "putchar") {
 			std::string arg = bb->cfg->IR_reg_to_asm(params[1]);
 			o << "    movl " << arg << ", %edi\n";
@@ -330,6 +344,7 @@ void IRInstr::gen_asm(ostream &o)
 		}
 		break;
 	}
+
 
 	default:
 		break;
@@ -899,21 +914,17 @@ public:
 		std::string funcName = ctx->VAR()->getText();
 	
 		if (funcName == "putchar") {
-			visit(ctx->expr(0));
+			visit(ctx->expr(0));  // Place l'argument dans %eax
 	
-			std::string temp = cfg->create_new_tempvar(INT);
-			std::string offset = cfg->IR_reg_to_asm(temp);  // -4(%rbp) ou autre
-			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset});
-	
+			std::string temp = cfg->create_new_tempvar(INT);   // Crée une var temporaire
+			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {temp}); // Sauvegarde %eax
 			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", temp});
 			return 0;
 		}
 		else if (funcName == "getchar") {
-			cfg->nextFreeSymbolIndex -= 4;
-			std::string dstOffset = to_string(cfg->nextFreeSymbolIndex) + "(%rbp)";
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", dstOffset});
-			// Il faut retourner dstOffset, sinon on ne peut pas le réutiliser dans l'affectation !
-			return dstOffset;
+			std::string temp = cfg->create_new_tempvar(INT);
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", temp});
+			return temp;
 		}
 	
 		return 0;
