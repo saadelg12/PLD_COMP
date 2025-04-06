@@ -8,6 +8,7 @@ block : '{' stmt* '}' ;
 
 stmt : declaration ';'
      | assignment ';'
+     | expr ';'
      | return_stmt 
      | block 
      | if_stmt
