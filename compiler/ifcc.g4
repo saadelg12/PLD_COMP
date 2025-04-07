@@ -4,7 +4,7 @@ axiom : prog EOF ;
 
 prog : function+;
 
-function: type VAR '(' (parameter_list)? ')' block;
+function: type VAR|FUNC '(' (parameter_list)? ')' block;
 
 parameter_list: parameter (',' parameter)*;
 
@@ -18,10 +18,9 @@ stmt : declaration ';'
      | assignment ';'
      | return_stmt 
      | functionCall ';'  
-     | block ;
+     | if_stmt;
 
 declaration : 'int' VAR ('=' expr)? ;
-
 
 assignment: VAR '=' expr ;
 
@@ -29,7 +28,8 @@ return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 
-functionCall : VAR '(' (expr (',' expr)*)? ')' ;
+functionCall : VAR|FUNC '(' (expr (',' expr)*)? ')' ;
+if_stmt : IF '(' expr ')' block (ELSE block)? ;
 
 expr
     : assignment                       # AssignementExpr 
@@ -48,9 +48,14 @@ expr
     | CHAR                              # CharConstExpr
     ;
 
+FUNC : 'putchar' | 'getchar' ;
+
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;
 CHAR : '\'' . '\'' ;
+
+IF : 'if';
+ELSE: 'else';
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;

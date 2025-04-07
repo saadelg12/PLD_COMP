@@ -45,7 +45,7 @@ public:
     virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
     
     // void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée
-    // void checkHasReturn();  // Vérifie si une fonction a un `return`
-    std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
-    int getStackOffset() const { return stackOffset; } // Retourne l'offset
+    void checkHasReturn();  // Vérifie si une fonction a un `return`
+    // std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
+    // int getStackOffset() const { return stackOffset; } // Retourne l'offset
 };

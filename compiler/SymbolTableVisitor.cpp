@@ -10,10 +10,11 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
     }
 
     // Insérer la variable avec l'offset actuel
-    currentScope->insert(varName, stackOffset,INT);
-    stackOffset -= 4;  // Réserver 4 octets pour la variable
+    int& offset = stackOffsets[currentFunction];
+    currentScope->insert(varName, offset, INT);
+    offset -= 4;
 
-    std::cout << "# Déclaration : " << varName << " -> " 
+    std::cout << "# Déclaration : " << varName << " -> "
               << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;
 
     return 0;
@@ -46,11 +47,11 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     SymbolTable * newSymbolTable = new SymbolTable();
     newSymbolTable->parent = this->currentScope;
     this->currentScope = newSymbolTable;
-    symbolTables.push_back(currentScope);
+    functionSymbolTables[currentFunction].push_back(currentScope);
     for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
         this->visit(stmt);  // visit each statement (declaration, assignment, return)
     }
-    checkUnusedVariables();
+    // checkUnusedVariables();
     currentScope = currentScope->parent;    
     
     return 0;
@@ -58,17 +59,20 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
 antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
+    currentFunction = functionName;
 
     currentScope = new SymbolTable();  // Racine
-    functionSymbolTables[functionName].push_back(currentScope);
-    stackOffsets[functionName] = -4;
-    functions[functionName] = ctx->type()->getText();  // Type de la fonction
-
+    functionSymbolTables[currentFunction].push_back(currentScope);
+    stackOffsets[currentFunction] = -4;
+    functions[currentFunction] = ctx->type()->getText();  // Type de la fonction
+    
+    hasReturn = false;
     visit(ctx->block());
 
-    // // Optionnel : vérifications
-    // checkUnusedVariables(functionName);
-    // checkHasReturn();
+    // Optionnel : vérifications
+    //checkUnusedVariables(functionName);
+    checkHasReturn();
+    hasReturn = false;
 
     return 0;
 }
