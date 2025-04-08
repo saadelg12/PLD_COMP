@@ -139,25 +139,6 @@ public:
 		return current_symbol_table->get(name).symbolType;
 	}
 
-	string create_new_tempvar(Type t)
-	{
-		// On utilise directement l'offset actuel
-		int offset = nextFreeSymbolIndex;
-
-		// On enregistre ce symbole dans la table, même si on n'utilise plus son nom
-		Symbol s;
-		s.symbolName = to_string(offset); // utile uniquement pour traçage/debug éventuel
-		s.symbolOffset = offset;
-		s.symbolType = t;
-		symbolTable.at(currentST_index)->table[s.symbolName] = s;
-
-		nextFreeSymbolIndex -= 4;
-
-		// On retourne l'offset en string pour l'utiliser directement dans l'IR
-		return to_string(offset);
-	}
-
-
 	int currentST_index;
 	int last_ST_index;
 	vector<BasicBlock *> bbs;
@@ -333,14 +314,14 @@ void IRInstr::gen_asm(ostream &o)
 		const std::string& funcName = params[0];
 
 		if (funcName == "putchar") {
-			std::string arg = bb->cfg->IR_reg_to_asm(params[1]);
-			o << "    movl " << arg << ", %edi\n";
+			std::string arg = params[1];
+			o << "    movl " << arg << "(%rbp), %edi\n";
 			o << "    call putchar\n";
 		}
 		else if (funcName == "getchar") {
-			std::string dst = bb->cfg->IR_reg_to_asm(params[1]);
+			std::string dst = params[1];
 			o << "    call getchar\n";
-			o << "    movl %eax, " << dst << "\n";
+			o << "    movl %eax, " << dst << "(%rbp)\n";
 		}
 		break;
 	}
@@ -633,7 +614,6 @@ public:
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	{
-		// std::string temp = cfg->create_new_tempvar(INT);
 		// string offset =  to_string(cfg->get_var_index(temp))+ "(%rbp)";
 		std::string value = ctx->CONST()->getText();
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {value});
@@ -916,15 +896,17 @@ public:
 		if (funcName == "putchar") {
 			visit(ctx->expr(0));  // Place l'argument dans %eax
 	
-			std::string temp = cfg->create_new_tempvar(INT);   // Crée une var temporaire
-			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {temp}); // Sauvegarde %eax
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", temp});
+			cfg->nextFreeSymbolIndex -= 4;
+			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
 			return 0;
 		}
 		else if (funcName == "getchar") {
-			std::string temp = cfg->create_new_tempvar(INT);
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", temp});
-			return temp;
+			cfg->nextFreeSymbolIndex -= 4;
+			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
+			return 0;
 		}
 	
 		return 0;
