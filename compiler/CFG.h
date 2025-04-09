@@ -15,8 +15,8 @@ class CFG
 public:
 	CFG(const std::string& functionName)
 		: currentFunction(functionName),
-        symbolTable(GlobalSymbolTables[functionName]),
-        nextFreeSymbolIndex(GlobalStackOffsets[functionName]),
+        symbolTable(),
+        nextFreeSymbolIndex(),
         currentST_index(0),
         last_ST_index(0) {}
 

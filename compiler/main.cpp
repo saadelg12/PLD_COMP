@@ -54,9 +54,12 @@ int main(int argn, const char **argv)
   // symbolTableVisitor.checkUnusedVariables();
 
   // Récupérer les maps
-  auto symbolTables = symbolTableVisitor.getFunctionSymbolTables();
+  auto functionSymbolTables = symbolTableVisitor.getFunctionSymbolTables();
   auto stackOffsets = symbolTableVisitor.getStackOffsets();
 
+  auto functionSymbolTables = new std::map<std::string, std::vector<SymbolTable*>>();
+  auto stackOffsets = new std::map<std::string, int>();
+  
   // Génération de l’IR à partir de l’AST
   CFG cfg(tree, symbolTableVisitor);
   IRGenVisitor irgen(&cfg);
