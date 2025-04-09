@@ -67,9 +67,25 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContex
             recup type+nom
     }
     currentScope = new SymbolTable();  // Racine
-    functionSymbolTables[currentFunction].push_back(currentScope);
+    
     stackOffsets[currentFunction] = -4;
     functions[currentFunction] = ctx->type()->getText();  // Type de la fonction
+
+    int i = 0; // Start index at 0
+    if (ctx->parameter_list()) { // Check if parameter_list exists
+        for (auto param : ctx->parameter_list()->parameter()) {
+            std::string argName = param->VAR()->getText(); // Get the variable name
+            if (currentScope->contains(argName)) {
+                std::cerr << "Erreur : Variable '" << argName << "' déjà déclarée dans ce scope !" << std::endl;
+                exit(1);
+            }
+            currentScope->insert(argName, stackOffsets[currentFunction], INT);
+            stackOffsets[currentFunction] -= 4;
+            i++;
+        }
+    }
+
+    functionSymbolTables[currentFunction].push_back(currentScope);
     
     hasReturn = false;
     visit(ctx->block());
