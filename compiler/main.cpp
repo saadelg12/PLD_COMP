@@ -9,7 +9,7 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "SymbolTableVisitor.h"
-#include "IR.h"
+#include "IRGenVisitor.h"
 
 using namespace antlr4;
 using namespace std;
@@ -59,7 +59,7 @@ int main(int argn, const char **argv)
 
   // Génération de l’IR à partir de l’AST
   CFG cfg(tree, symbolTableVisitor);
-  IRGenerator irgen(&cfg);
+  IRGenVisitor irgen(&cfg);
   irgen.visit(tree);
 
   // Génération du code assembleur depuis l’IR
