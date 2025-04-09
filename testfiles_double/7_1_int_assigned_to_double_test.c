@@ -1,4 +1,4 @@
 int main() {
-    double pi = 3.14;
+    double val = 3;
     return 0;
 }
