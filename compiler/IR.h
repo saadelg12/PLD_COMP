@@ -358,8 +358,8 @@ void IRInstr::gen_asm(ostream &o)
 
 	case int_to_double:
 		//o << "    cvtsi2sd " << params[0] << "(%rbp), %xmm0\n";
-		o << "    cvtsi2sd %eax, %xmm0\n";
-		o << "    movsd %xmm0, " << params[0] << "(%rbp)\n";
+		o << "    cvtsi2sd %eax, %xmm1\n";
+		o << "    movsd %xmm1, " << params[0] << "(%rbp)\n";
 		break;
 	
 	case double_to_int:
@@ -704,6 +704,7 @@ public:
 		std::string varName = ctx->VAR()->getText();
 		string offset = to_string(cfg->get_var_index(varName));
 		lastExprType = cfg->get_var_type(varName);
+		//cout<<"NAME : "<<varName<<"   Type :"<<lastExprType<<endl;
 		cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {offset});
 		return 0;
 	}
@@ -741,23 +742,31 @@ public:
 		// cout<<"visitAddSub\n";
 		visit(ctx->expr(0));
 		Type leftType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {leftOffset});
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {rightOffset});
 
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
-
+			
 			if (leftType == INT) {
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
+				
+				leftOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
 			}
 			if (rightType == INT) {
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+				
+				rightOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
 			}
 		} else {
 			lastExprType = INT;
@@ -777,23 +786,31 @@ public:
 		// cout<<"visitMulDiv\n";
 		visit(ctx->expr(0));
 		Type leftType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {leftOffset});
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {rightOffset});
 		
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
 
 			if (leftType == INT) {
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
+				
+				leftOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
 			}
 			if (rightType == INT) {
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+				
+				rightOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
 			}
 		} else {
 			lastExprType = INT;
@@ -839,22 +856,32 @@ public:
 	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override {
 		visit(ctx->expr(0));
 		Type leftType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
 	
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
-		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, rightType, {rightOffset});
 	
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
-			if (leftType == INT)
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
-			if (rightType == INT)
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+			if (leftType == INT) {
+				
+				leftOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
+			}
+			if (rightType == INT) {
+				
+				rightOffset = to_string(cfg->nextFreeSymbolIndex);
+				cfg->nextFreeSymbolIndex -= 8;
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
+			}
 		} else {
 			lastExprType = INT;
 		}
@@ -892,12 +919,14 @@ public:
 	antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override
 	{
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_and, INT, {leftOffset, rightOffset});
 		return 0;
@@ -906,12 +935,14 @@ public:
 	antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override
 	{
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_or, INT, {leftOffset, rightOffset});
 		return 0;
@@ -920,12 +951,14 @@ public:
 	antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override
 	{
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->nextFreeSymbolIndex -= 4;
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 		cfg->current_bb->add_IRInstr(IRInstr::bitwise_xor, INT, {leftOffset, rightOffset});
 		return 0;
@@ -1052,15 +1085,17 @@ public:
 		if (funcName == "putchar") {
 			visit(ctx->expr(0));  // Place l'argument dans %eax
 	
-			cfg->nextFreeSymbolIndex -= 4;
+			
 			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->nextFreeSymbolIndex -= 4;
 			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
 			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
 			return 0;
 		}
 		else if (funcName == "getchar") {
-			cfg->nextFreeSymbolIndex -= 4;
+			
 			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->nextFreeSymbolIndex -= 4;
 			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
 			return 0;
 		}
