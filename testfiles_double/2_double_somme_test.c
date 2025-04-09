@@ -3,5 +3,6 @@ int main() {
     double b = 3.0;
     double c;
     c = a + b;
-    return 0; 
+    double d = 9.0;
+    return c==d; 
 }

@@ -1,4 +1,4 @@
 int main() {
     double val = 3;
-    return 0;
+    return val==3.0;
 }
