@@ -46,6 +46,6 @@ public:
     
     // void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée
     void checkHasReturn();  // Vérifie si une fonction a un `return`
-    // std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
-    // int getStackOffset() const { return stackOffset; } // Retourne l'offset
+    std::map<std::string, std::vector<SymbolTable *>>getFunctionSymbolTables()const { return functionSymbolTables; } // Retourne la map des tables de symboles
+    std::map<std::string, int> getStackOffsets() const { return stackOffsets; } // Retourne la map des offsets de la pile
 };
