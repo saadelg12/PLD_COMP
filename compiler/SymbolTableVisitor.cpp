@@ -62,7 +62,7 @@ antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx
     currentFunction = functionName;
 
     currentScope = new SymbolTable();  // Racine
-    functionSymbolTables[currentFunction].push_back(currentScope);
+    
     stackOffsets[currentFunction] = -4;
     functions[currentFunction] = ctx->type()->getText();  // Type de la fonction
 
