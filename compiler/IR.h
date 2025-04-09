@@ -269,11 +269,27 @@ void IRInstr::gen_asm(ostream &o)
 		break;
 
 	case cmp_expr:
-		o << "    cmp" << s << " " << params[0] << "(%rbp), %eax\n";
-		o << "    " << params[1] << " %al\n";
-		o << "    movzbl %al, %eax\n";
+		if (t == DOUBLE) {
+			// params[0] = offset droit, params[1] = set instruction (seta, setbe, etc.)
+	
+			o << "    movsd " << params[0] << "(%rbp), %xmm1\n"; // droite
+			o << "    ucomisd %xmm1, %xmm0\n";                    // compare xmm0 (gauche) à xmm1
+	
+			if (params[1] == "sete")        o << "    sete %al\n";
+			else if (params[1] == "setne")  o << "    setne %al\n";
+			else if (params[1] == "setl")   o << "    seta %al\n";   // a < b => unordered-safe
+			else if (params[1] == "setle")  o << "    setae %al\n";  // a <= b
+			else if (params[1] == "setg")   o << "    setb %al\n";   // a > b
+			else if (params[1] == "setge")  o << "    setbe %al\n";  // a >= b
+	
+			o << "    movzbl %al, %eax\n"; // résultat dans eax
+		} else {
+			o << "    cmp" << s << " " << params[0] << "(%rbp), %eax\n";
+			o << "    " << params[1] << " %al\n";
+			o << "    movzbl %al, %eax\n";
+		}
 		break;
-
+	
 	case cmp_lt:
 		if (t == CHAR)
 		{
@@ -341,14 +357,15 @@ void IRInstr::gen_asm(ostream &o)
 		break;
 
 	case int_to_double:
-		o << "    cvtsi2sd " << params[0] << "(%rbp), %xmm0\n";
-		o << "    movsd %xmm0, " << params[1] << "(%rbp)\n";
+		//o << "    cvtsi2sd " << params[0] << "(%rbp), %xmm0\n";
+		o << "    cvtsi2sd %eax, %xmm0\n";
+		o << "    movsd %xmm0, " << params[0] << "(%rbp)\n";
 		break;
 	
 	case double_to_int:
-		o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+		//o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
 		o << "    cvttsd2si %xmm0, %eax\n";
-		o << "    movl %eax, " << params[1] << "(%rbp)\n";
+		o << "    movl %eax, " << params[0] << "(%rbp)\n";
 		break;
 
 	case ret:
@@ -634,7 +651,7 @@ public:
 	antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
 	{
 		visit(ctx->expr());
-		cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {});
+		cfg->current_bb->add_IRInstr(IRInstr::ret, lastExprType, {});
 		return 0;
 	}
 
@@ -647,14 +664,23 @@ public:
 		if (ctx->expr())
 		{
 			visit(ctx->expr());
-			cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+			if(lastExprType == type)cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+			else{
+				if (type == INT){
+					cfg->current_bb->add_IRInstr(IRInstr::double_to_int, type, {offset});
+				}
+				else if (type == DOUBLE){
+					cfg->current_bb->add_IRInstr(IRInstr::int_to_double, type, {offset});
+				}
+			}
+			
 		}
 		// else
 		// {
 		// 	// Initialisation implicite à 0
 		// 	cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {"0"});
 		// }
-		
+		lastExprType = type;
 		return 0;
 	}
 
@@ -663,12 +689,12 @@ public:
 		// cout<<"visitAssignment\n";
 		std::string varName = ctx->VAR()->getText();
 		string offset = to_string(cfg->get_var_index(varName));
-		Type type = cfg->get_var_type(varName);
+		lastExprType = cfg->get_var_type(varName);
 		// std::string rhs = any_cast<std::string>(visit(ctx->expr()));
 		// string rhsOffset =  to_string(cfg->get_var_index(rhs)) + "(%rbp)";
 		antlrcpp::Any value = visit(ctx->expr());
 		// cout<<" varName" <<varName<<rhs <<"rhs "<< rhs<< endl ;
-		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {offset});
 		return value;
 	}
 
@@ -677,9 +703,8 @@ public:
 		// return ctx->VAR()->getText();
 		std::string varName = ctx->VAR()->getText();
 		string offset = to_string(cfg->get_var_index(varName));
-		Type type = cfg->get_var_type(varName);
-		cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {offset});
-		lastExprType = type;
+		lastExprType = cfg->get_var_type(varName);
+		cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {offset});
 		return 0;
 	}
 
@@ -718,12 +743,12 @@ public:
 		Type leftType = lastExprType;
 		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {leftOffset});
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
 		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {rightOffset});
 
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
@@ -754,12 +779,12 @@ public:
 		Type leftType = lastExprType;
 		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {leftOffset});
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
 		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {rightOffset});
 		
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
@@ -811,39 +836,48 @@ public:
 		return 0;
 	}
 
-	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
-	{
+	antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override {
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type leftType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
+	
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type rightType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
-
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
-		cfg->current_bb->add_IRInstr(IRInstr::ldvar, INT, {leftOffset});
-
+		cfg->current_bb->add_IRInstr(IRInstr::copy, rightType, {rightOffset});
+	
+		if (leftType == DOUBLE || rightType == DOUBLE) {
+			lastExprType = DOUBLE;
+			if (leftType == INT)
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
+			if (rightType == INT)
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+		} else {
+			lastExprType = INT;
+		}
+	
+		// Charger la valeur gauche
+		cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {leftOffset});
+	
+		// Déterminer l'instruction set*
 		std::string op = ctx->getText();
 		std::string setInstr;
-
-		if (op.find("==") != std::string::npos)
-			setInstr = "sete";
-		else if (op.find("!=") != std::string::npos)
-			setInstr = "setne";
-		else if (op.find("<=") != std::string::npos)
-			setInstr = "setle";
-		else if (op.find(">=") != std::string::npos)
-			setInstr = "setge";
-		else if (op.find("<") != std::string::npos)
-			setInstr = "setl";
-		else if (op.find(">") != std::string::npos)
-			setInstr = "setg";
-
-		cfg->current_bb->add_IRInstr(IRInstr::cmp_expr, INT, {rightOffset, setInstr});
-
+		if (op.find("==") != std::string::npos) setInstr = "sete";
+		else if (op.find("!=") != std::string::npos) setInstr = "setne";
+		else if (op.find("<=") != std::string::npos) setInstr = "setle";
+		else if (op.find(">=") != std::string::npos) setInstr = "setge";
+		else if (op.find("<")  != std::string::npos) setInstr = "setl";
+		else if (op.find(">")  != std::string::npos) setInstr = "setg";
+	
+		// Comparaison finale
+		cfg->current_bb->add_IRInstr(IRInstr::cmp_expr, lastExprType, {rightOffset, setInstr});
+		lastExprType = INT; // une comparaison retourne toujours un booléen (int)
 		return 0;
 	}
+	
 
 	antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override
 	{
