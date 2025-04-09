@@ -53,7 +53,6 @@ void printTrunk(int height) {
 int main() {
     int height = 0;
 
-    choose the height of the tree
     putchar('C');
     putchar('h');
     putchar('o');
@@ -83,8 +82,34 @@ int main() {
     putchar('r');
     putchar('e');
     putchar('e');
-    
+    putchar(' ');
+    putchar('b');
+    putchar('e');
+    putchar('t');
+    putchar('w');
+    putchar('e');
+    putchar('e');
+    putchar('n');
+    putchar(' ');
+    putchar('1');
+    putchar(' ');
+    putchar('a');
+    putchar('n');
+    putchar('d');
+    putchar(' ');
+    putchar('9');
+    putchar(' ');
+    putchar('i');
+    putchar('n');
+    putchar('c');
+    putchar('l');
+    putchar('u');
+    putchar('s');
+    putchar('i');
+    putchar('v');
+    putchar('e');
     putchar(':');
+    putchar('\n');
 
 
     height = getchar() - '0';
@@ -96,10 +121,8 @@ int main() {
         putchar('E');
         putchar('r');
         putchar('r');
-        putchar('e');
-        putchar('u');
+        putchar('o');
         putchar('r');
-        putchar('e');
         putchar(':');
         putchar(' ');
         putchar('H');
