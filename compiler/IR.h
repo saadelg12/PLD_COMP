@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 #pragma once
 
 #include "generated/ifccBaseVisitor.h"
@@ -40,6 +38,8 @@ public:
 		bitwise_and,
 		bitwise_or,
 		bitwise_xor,
+		int_to_double,
+		double_to_int,
 		ret,
 		cond_jump,
 		call,
@@ -69,6 +69,8 @@ private:
 			return "l"; // long = 4 octets
 		case CHAR:
 			return "b"; // byte = 1 octet
+		case DOUBLE:
+			return "sd";// long = 8 octets
 		default:
 			return "l"; // fallback = int
 		}
@@ -150,6 +152,8 @@ public:
 
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
+	std::map<std::string, std::string> double_constants;
+	int double_constant_counter = 0;
 
 private:
 	void *ast;
@@ -170,40 +174,83 @@ void IRInstr::gen_asm(ostream &o)
 	switch (op)
 	{
 	case ldconst:
-		o << "    mov" << s << " $" << params[0] << ", %eax\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rip), %xmm0\n";
+		} else {
+			o << "    mov" << s << " $" << params[0] << ", %eax\n";
+		}
 		break;
-
+	
 	case ldvar:
-		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+		} else {
+			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		}
+		
 		break;
 
 	case copy:
-		o << "    mov" << s << " %eax, " << params[0] << "(%rbp)\n";
+		if (t == DOUBLE) {
+			o << "    movsd %xmm0, " << params[0] << "(%rbp)\n";
+		} else {
+			o << "    mov" << s << " %eax, " << params[0] << "(%rbp)\n";
+		}
 		break;
-
+	
+	
 	case add:
-		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-		o << "    add" << s << " " << params[1] << "(%rbp), %eax\n";
-		// o << "    mov" << s << " %eax, " << params[0] << "\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+			o << "    addsd " << params[1] << "(%rbp), %xmm0\n";
+			// store result?
+			// o << "    movsd %xmm0, " << params[0] << "\n";
+		} else {
+			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+			o << "    add" << s << " " << params[1] << "(%rbp), %eax\n";
+		}
+		//o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case sub:
-		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-		o << "    sub" << s << " " << params[1] << "(%rbp), %eax\n";
-		// o << "    mov" << s << " %eax, " << params[0] << "\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+			o << "    subsd " << params[1] << "(%rbp), %xmm0\n";
+			// store result?
+			// o << "    movsd %xmm0, " << params[0] << "\n";
+		} else {
+			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+			o << "    sub" << s << " " << params[1] << "(%rbp), %eax\n";
+		}	
+		//o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mul:
-		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-		o << "    imul" << s << " " << params[1] << "(%rbp), %eax\n";
-		// o << "    mov" << s << " %eax, " << params[0] << "\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+			o << "    mulsd " << params[1] << "(%rbp), %xmm0\n";
+			// store result?
+			// o << "    movsd %xmm0, " << params[0] << "\n";
+		} else {
+			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+			o << "    imul" << s << " " << params[1] << "(%rbp), %eax\n";
+		}	
+		//o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case div:
-		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-		o << "    cltd\n";
-		o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
-		// o << "    mov" << s << " %eax, " << params[0] << "\n";
+		if (t == DOUBLE) {
+			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+			o << "    divsd " << params[1] << "(%rbp), %xmm0\n";
+			// store result?
+			// o << "    movsd %xmm0, " << params[0] << "\n";
+		} else {
+			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+			o << "    cltd\n";
+			o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
+		}	
+		
+		//o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mod:
@@ -291,6 +338,17 @@ void IRInstr::gen_asm(ostream &o)
 		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
 		o << "    xor" << s << " " << params[1] << "(%rbp), %eax\n";
 		// o << "    mov" << s << " %eax, " << params[0] << "\n";
+		break;
+
+	case int_to_double:
+		o << "    cvtsi2sd " << params[0] << "(%rbp), %xmm0\n";
+		o << "    movsd %xmm0, " << params[1] << "(%rbp)\n";
+		break;
+	
+	case double_to_int:
+		o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
+		o << "    cvttsd2si %xmm0, %eax\n";
+		o << "    movl %eax, " << params[1] << "(%rbp)\n";
 		break;
 
 	case ret:
@@ -510,6 +568,16 @@ void CFG::gen_asm_epilogue(ostream &o)
 
 void CFG::gen_asm(std::ostream &o)
 {
+	if (!double_constants.empty()) {
+		o << "\n    .section .rodata\n";
+		for (const auto &pair : double_constants) {
+			o << pair.second << ":\n";
+			o << "    .double " << pair.first << "\n";
+		}
+		o << "    .text\n";
+	}
+
+	
 	if (is_arm)
 	{
 		o << "    .globl _main\n";
@@ -543,7 +611,6 @@ void CFG::gen_asm(std::ostream &o)
 #endif
 
 	gen_asm_prologue(o);
-
 	currentST_index = 1;
 	for (auto bb : bbs)
 	{
@@ -580,13 +647,14 @@ public:
 		if (ctx->expr())
 		{
 			visit(ctx->expr());
+			cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
 		}
-		else
-		{
-			// Initialisation implicite à 0
-			cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {"0"});
-		}
-		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+		// else
+		// {
+		// 	// Initialisation implicite à 0
+		// 	cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {"0"});
+		// }
+		
 		return 0;
 	}
 
@@ -616,9 +684,30 @@ public:
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	{
-		// string offset =  to_string(cfg->get_var_index(temp))+ "(%rbp)";
-		std::string value = ctx->CONST()->getText();
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {value});
+		std::string text = ctx->CONST()->getText();
+		Type constType = (text.find('.') != std::string::npos) ? DOUBLE : INT;
+
+		std::string value;
+
+		if (text.find('.') != std::string::npos) {
+			constType = DOUBLE;
+
+			// Génère une étiquette unique pour la constante si elle n’existe pas encore
+			std::string label;
+			if (cfg->double_constants.count(text) == 0) {
+				label = "LC" + std::to_string(cfg->double_constant_counter++);
+				cfg->double_constants[text] = label;
+			} else {
+				label = cfg->double_constants[text];
+			}
+
+			value = label;  // accès mémoire relatif à RIP
+		} else {
+			constType = INT;
+			value = text;
+		}
+
+		cfg->current_bb->add_IRInstr(IRInstr::ldconst, constType, {value});
 		return 0;
 	}
 
@@ -917,4 +1006,3 @@ public:
 private:
 	CFG *cfg;
 };
->>>>>>> put_get_char
