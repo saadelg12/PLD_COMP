@@ -39,7 +39,7 @@ public:
     antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext* ctx) override;
     antlrcpp::Any visitBlock(ifccParser::BlockContext* ctx) override;
     antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext* ctx) override;
-    antlrcpp::Any visitFunction_call(ifccParser::Function_callContext* ctx) override;
+    antlrcpp::Any visitFunctionCall(ifccParser::FunctionCallContext* ctx) override;
 
 private:
     CFG* cfg;

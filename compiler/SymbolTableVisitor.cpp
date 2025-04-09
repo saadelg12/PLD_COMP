@@ -57,7 +57,7 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionContext *ctx) {
+antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
     currentFunction = functionName;
     // vector SymbolTable functionVec
