@@ -679,18 +679,18 @@ public:
 		string offset = to_string(cfg->get_var_index(varName));
 		Type type = cfg->get_var_type(varName);
 		cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {offset});
+		lastExprType = type;
 		return 0;
 	}
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	{
 		std::string text = ctx->CONST()->getText();
-		Type constType = (text.find('.') != std::string::npos) ? DOUBLE : INT;
+		lastExprType = (text.find('.') != std::string::npos) ? DOUBLE : INT;
 
 		std::string value;
 
 		if (text.find('.') != std::string::npos) {
-			constType = DOUBLE;
 
 			// Génère une étiquette unique pour la constante si elle n’existe pas encore
 			std::string label;
@@ -703,11 +703,11 @@ public:
 
 			value = label;  // accès mémoire relatif à RIP
 		} else {
-			constType = INT;
+			lastExprType = INT;
 			value = text;
 		}
 
-		cfg->current_bb->add_IRInstr(IRInstr::ldconst, constType, {value});
+		cfg->current_bb->add_IRInstr(IRInstr::ldconst, lastExprType, {value});
 		return 0;
 	}
 
@@ -715,19 +715,34 @@ public:
 	{
 		// cout<<"visitAddSub\n";
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type leftType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type rightType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
 
+		if (leftType == DOUBLE || rightType == DOUBLE) {
+			lastExprType = DOUBLE;
+
+			if (leftType == INT) {
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
+			}
+			if (rightType == INT) {
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+			}
+		} else {
+			lastExprType = INT;
+		}
+
 		std::string op = ctx->OP->getText();
 		if (op == "+")
-			cfg->current_bb->add_IRInstr(IRInstr::add, INT, {leftOffset, rightOffset});
+			cfg->current_bb->add_IRInstr(IRInstr::add, lastExprType, {leftOffset, rightOffset});
 		else
-			cfg->current_bb->add_IRInstr(IRInstr::sub, INT, {leftOffset, rightOffset});
+			cfg->current_bb->add_IRInstr(IRInstr::sub, lastExprType, {leftOffset, rightOffset});
 
 		return 0;
 	}
@@ -736,23 +751,39 @@ public:
 	{
 		// cout<<"visitMulDiv\n";
 		visit(ctx->expr(0));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type leftType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
 		visit(ctx->expr(1));
-		cfg->nextFreeSymbolIndex -= 4;
+		Type rightType = lastExprType;
+		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		string rightOffset = to_string(cfg->nextFreeSymbolIndex);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+		
+		if (leftType == DOUBLE || rightType == DOUBLE) {
+			lastExprType = DOUBLE;
+
+			if (leftType == INT) {
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
+			}
+			if (rightType == INT) {
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
+			}
+		} else {
+			lastExprType = INT;
+		}
+		
 		std::string op = ctx->OP->getText();
 		if (op == "*")
 		{
-			cfg->current_bb->add_IRInstr(IRInstr::mul, INT, {leftOffset, rightOffset});
+			cfg->current_bb->add_IRInstr(IRInstr::mul, lastExprType, {leftOffset, rightOffset});
 		}
 		else if (op == "/")
 		{
-			cfg->current_bb->add_IRInstr(IRInstr::div, INT, {leftOffset, rightOffset});
+			cfg->current_bb->add_IRInstr(IRInstr::div, lastExprType, {leftOffset, rightOffset});
 		}
-		else if (op == "%")
+		else if (op == "%" && lastExprType == INT)
 		{
 			cfg->current_bb->add_IRInstr(IRInstr::mod, INT, {leftOffset, rightOffset});
 		}
@@ -1005,4 +1036,6 @@ public:
 
 private:
 	CFG *cfg;
+	Type lastExprType;
+
 };
