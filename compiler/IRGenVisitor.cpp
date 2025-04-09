@@ -7,23 +7,7 @@ IRGenerator(CFG *cfg_) : cfg(cfg_)
 	cfg->add_bb(current_bb);
 }
 
-// antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override {
-// 	auto stmts = ctx->block()->stmt();
-// 	for (auto stmt : stmts) {
-// 		this->visit(stmt);
-
-// 		// early return: si on a déjà rencontré 'ret'
-// 		if (!cfg->current_bb->instrs.empty()) {
-// 			IRInstr *last = cfg->current_bb->instrs.back();
-// 			if (last->getOperation() == IRInstr::ret) {
-// 				break;
-// 			}
-// 		}
-// 	}
-// 	return 0;
-// }
-
-antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
+antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) 
 {
 	// Si c’est une constante, on la renvoie directement
 	// if (auto constExpr = dynamic_cast<ifccParser::ConstExprContext *>(ctx->expr()))
@@ -42,7 +26,7 @@ antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override
+antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) 
 {
 	// cout<<"visitDeclaration\n";
 	std::string varName = ctx->VAR()->getText();
@@ -63,7 +47,7 @@ antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
+antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) 
 {
 	// cout<<"visitAssignment\n";
 	std::string varName = ctx->VAR()->getText();
@@ -77,7 +61,7 @@ antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	return value;
 }
 
-antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
+antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) 
 {
 	// return ctx->VAR()->getText();
 	std::string varName = ctx->VAR()->getText();
@@ -87,7 +71,7 @@ antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
+antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) 
 {
 	// std::string temp = cfg->create_new_tempvar(INT);
 	// string offset =  to_string(cfg->get_var_index(temp))+ "(%rbp)";
@@ -96,7 +80,7 @@ antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
+antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) 
 {
 	// cout<<"visitAddSub\n";
 	visit(ctx->expr(0));
@@ -117,7 +101,7 @@ antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
+antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) 
 {
 	// cout<<"visitMulDiv\n";
 	visit(ctx->expr(0));
@@ -144,13 +128,13 @@ antlrcpp::Any visitMulDiv(ifccParser::MulDivContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitParExpr(ifccParser::ParExprContext *ctx) override
+antlrcpp::Any visitParExpr(ifccParser::ParExprContext *ctx) 
 {
 	// cout<<"visitParExpr\n";
 	return visit(ctx->expr());
 }
 
-antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
+antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) 
 {
 	// cout<<"visitNegateExpr\n";
 	visit(ctx->expr());
@@ -158,14 +142,14 @@ antlrcpp::Any visitNegateExpr(ifccParser::NegateExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override
+antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) 
 {
 	visit(ctx->expr());
 	cfg->current_bb->add_IRInstr(IRInstr::cmp_eq, INT, {});
 	return 0;
 }
 
-antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
+antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) 
 {
 	visit(ctx->expr(0));
 	cfg->nextFreeSymbolIndex -= 4;
@@ -199,7 +183,7 @@ antlrcpp::Any visitCmpExpr(ifccParser::CmpExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override
+antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) 
 {
 
 	std::string text = ctx->CHAR()->getText(); // exemple : 'A'
@@ -209,7 +193,7 @@ antlrcpp::Any visitCharConstExpr(ifccParser::CharConstExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) override
+antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) 
 {
 	visit(ctx->expr(0));
 	cfg->nextFreeSymbolIndex -= 4;
@@ -223,7 +207,7 @@ antlrcpp::Any visitBitwiseAndExpr(ifccParser::BitwiseAndExprContext *ctx) overri
 	return 0;
 }
 
-antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override
+antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) 
 {
 	visit(ctx->expr(0));
 	cfg->nextFreeSymbolIndex -= 4;
@@ -237,7 +221,7 @@ antlrcpp::Any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override
 	return 0;
 }
 
-antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) override
+antlrcpp::Any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *ctx) 
 {
 	visit(ctx->expr(0));
 	cfg->nextFreeSymbolIndex -= 4;
@@ -346,9 +330,9 @@ antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx)
 	return 0;
 }
 
-antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override
+antlrcpp::Any visitFunctionCall(ifccParser::FunctionCallContext *ctx) 
 {
-	std::string funcName = ctx->FUNC()->getText();
+	std::string funcName = ctx->VAR()->getText();
 
 	if (funcName == "putchar")
 	{
@@ -364,5 +348,18 @@ antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override
 	}
 
 	// pour d'autres fonctions plus tard...
+	return 0;
+}
+
+antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext* ctx) {
+	std::string functionName = ctx->VAR()->getText();
+
+	CFG* currentCFG = new CFG(functionName);
+	cfgMap[functionName] = currentCFG;
+
+	// cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName});
+	// return 0;
+	// std::string funcName = ctx->VAR()->getText();
+	// cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName});
 	return 0;
 }

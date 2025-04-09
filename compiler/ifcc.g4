@@ -4,9 +4,9 @@ axiom : prog EOF ;
 
 prog : (functionDef|functionDec)+;
 
-functionDef: TYPE VAR|FUNC '(' (parameter_list)? ')' block;
+functionDef: TYPE VAR '(' (parameter_list)? ')' block;
 
-functionDec: TYPE VAR|FUNC '(' (parameter_list)? ')' ';';
+functionDec: TYPE VAR'(' (parameter_list)? ')' ';';
 
 parameter_list: parameter (',' parameter)*;
 
@@ -30,7 +30,7 @@ return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 
-functionCall : VAR|FUNC '(' (expr (',' expr)*)? ')' ;
+functionCall : VAR '(' (expr (',' expr)*)? ')' ;
 
 if_stmt : IF '(' expr ')' block (ELSE block)? ;
 
@@ -50,8 +50,6 @@ expr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
     ;
-
-FUNC : 'putchar' | 'getchar' ;
 
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;

@@ -61,12 +61,12 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
     currentFunction = functionName;
-    // vector SymbolTable functionVec
+    functionsMap[currentFunction] = ctx->TYPE()->getText();  // Type de la fonction
+
     SymbolTable * st;
     currentScope = new SymbolTable();  // Racine
     
     stackOffsets[currentFunction] = -4;
-    functions[currentFunction] = ctx->TYPE()->getText();  // Type de la fonction
 
     int i = 0; // Start index at 0
     if (ctx->parameter_list()) { // Check if parameter_list exists
@@ -81,7 +81,6 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContex
             i++;
         }
     }
-
     functionSymbolTables[currentFunction].push_back(currentScope);
     
     hasReturn = false;
@@ -97,7 +96,7 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContex
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
-    if (functions.find(functionName) == functions.end()) {
+    if (functionsMap.find(functionName) == functionsMap.end()) {
         std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
         exit(1);
     }
@@ -106,8 +105,11 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallCont
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionDec(ifccParser::FunctionDecContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
-    if (functions.find(functionName) == functions.end()) {
-        std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
+    if (functionsMap.find(functionName) == functionsMap.end()) {
+        // On ajoute la fonction à la map des fonctions déclarées
+        functionsMap[functionName] = ctx->TYPE()->getText();  // Type de la fonction
+    } else {
+        std::cerr << "Erreur : Fonction '" << functionName << "' déjà déclarée !" << std::endl;
         exit(1);
     }
     return 0;

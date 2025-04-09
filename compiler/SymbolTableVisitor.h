@@ -13,7 +13,7 @@ class SymbolTableVisitor : public ifccBaseVisitor {
 private:
     SymbolTable * currentScope; 
     std::string currentFunction; // Nom de la fonction courante
-    std::map<std::string, std::string> functions; // Nom de la fonction et son type
+    std::map<std::string, std::string> functions; // Fonctions déclarées et leur type de retour
     std::map<std::string, std::vector<SymbolTable *>>  functionSymbolTables; // Liste des tables de symboles
     std::map<std::string, std::set<std::string>> usedVariables;   // Stocke les variables utilisées pour vérifier leur usage
     std::map<std::string, int> stackOffsets;   // Offset de la première variable (%rbp - 4)

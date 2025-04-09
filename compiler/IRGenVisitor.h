@@ -21,7 +21,6 @@ class IRGenVisitor : public ifccBaseVisitor {
 public:
     IRGenVisitor(CFG* cfg);
 
-    antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext* ctx) override;
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
     antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext* ctx) override;
     antlrcpp::Any visitAssignment(ifccParser::AssignmentContext* ctx) override;
@@ -40,7 +39,9 @@ public:
     antlrcpp::Any visitBlock(ifccParser::BlockContext* ctx) override;
     antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext* ctx) override;
     antlrcpp::Any visitFunctionCall(ifccParser::FunctionCallContext* ctx) override;
+    antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext* ctx) override;
+
 
 private:
-    CFG* cfg;
+    std::map<std::string, CFG*>  cfgMap; // Map des CFGs pour chaque fonction
 };
