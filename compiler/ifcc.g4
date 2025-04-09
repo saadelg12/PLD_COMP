@@ -6,7 +6,7 @@ prog : (functionDef|functionDec)+;
 
 functionDef: TYPE VAR '(' (parameter_list)? ')' block;
 
-functionDec: TYPE VAR|FUNC '(' (parameter_list)? ')' ';';
+functionDec: TYPE VAR'(' (parameter_list)? ')' ';';
 
 parameter_list: parameter (',' parameter)*;
 
