@@ -57,19 +57,16 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionContext *ctx) {
+
+antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
     currentFunction = functionName;
     // vector SymbolTable functionVec
     SymbolTable * st;
-    int i = 1;
-    for each(parameter){
-            recup type+nom
-    }
     currentScope = new SymbolTable();  // Racine
     
     stackOffsets[currentFunction] = -4;
-    functions[currentFunction] = ctx->type()->getText();  // Type de la fonction
+    functions[currentFunction] = ctx->TYPE()->getText();  // Type de la fonction
 
     int i = 0; // Start index at 0
     if (ctx->parameter_list()) { // Check if parameter_list exists
@@ -95,6 +92,24 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionContext *
     checkHasReturn();
     hasReturn = false;
 
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) {
+    std::string functionName = ctx->VAR()->getText();
+    if (functions.find(functionName) == functions.end()) {
+        std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
+        exit(1);
+    }
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitFunctionDec(ifccParser::FunctionDecContext *ctx) {
+    std::string functionName = ctx->VAR()->getText();
+    if (functions.find(functionName) == functions.end()) {
+        std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
+        exit(1);
+    }
     return 0;
 }
 

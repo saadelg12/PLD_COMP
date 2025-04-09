@@ -2,13 +2,15 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : function+;
+prog : (functionDef|functionDec)+;
 
 functionDef: TYPE VAR|FUNC '(' (parameter_list)? ')' block;
 
+functionDec: TYPE VAR|FUNC '(' (parameter_list)? ')' ';';
+
 parameter_list: parameter (',' parameter)*;
 
-parameter: type VAR;
+parameter: TYPE VAR;
 
 TYPE : 'int' | 'void';
 
