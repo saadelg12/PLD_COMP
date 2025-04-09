@@ -361,7 +361,7 @@ void IRInstr::gen_asm(ostream &o)
 		o << "    cvtsi2sd %eax, %xmm1\n";
 		o << "    movsd %xmm1, " << params[0] << "(%rbp)\n";
 		break;
-	
+
 	case double_to_int:
 		//o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
 		o << "    cvttsd2si %xmm0, %eax\n";
@@ -689,12 +689,18 @@ public:
 		// cout<<"visitAssignment\n";
 		std::string varName = ctx->VAR()->getText();
 		string offset = to_string(cfg->get_var_index(varName));
-		lastExprType = cfg->get_var_type(varName);
+		Type type = cfg->get_var_type(varName);
 		// std::string rhs = any_cast<std::string>(visit(ctx->expr()));
 		// string rhsOffset =  to_string(cfg->get_var_index(rhs)) + "(%rbp)";
 		antlrcpp::Any value = visit(ctx->expr());
 		// cout<<" varName" <<varName<<rhs <<"rhs "<< rhs<< endl ;
-		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {offset});
+		if(type != lastExprType)
+		{
+			if(type == INT) cfg->current_bb->add_IRInstr(IRInstr::double_to_int, type, {offset});
+			else cfg->current_bb->add_IRInstr(IRInstr::int_to_double, type, {offset});
+		}
+		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+		lastExprType = type;
 		return value;
 	}
 
@@ -746,6 +752,7 @@ public:
 		string leftOffset = to_string(cfg->nextFreeSymbolIndex);
 		cfg->nextFreeSymbolIndex -= getTypeSize(leftType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
+		
 		visit(ctx->expr(1));
 		Type rightType = lastExprType;
 		
@@ -753,6 +760,7 @@ public:
 		cfg->nextFreeSymbolIndex -= getTypeSize(rightType);
 		cfg->current_bb->add_IRInstr(IRInstr::copy, lastExprType, {rightOffset});
 
+		
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
 			
