@@ -9,16 +9,33 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
         exit(1);
     }
 
-    // Insérer la variable avec l'offset actuel
-    currentScope->insert(varName, stackOffset,INT);
-    stackOffset -= 4;  // Réserver 4 octets pour la variable
+    // Déterminer le type
+    std::string typeText = ctx->TYPE()->getText();
+    Type varType;
+    if (typeText == "int") {
+        varType = INT;
+    } else if (typeText == "double") {
+        varType = DOUBLE;
+    } else {
+        std::cerr << "Type inconnu : " << typeText << "\n";
+        exit(1);
+    }
 
-    std::cout << "# Déclaration : " << varName << " -> " 
+    // Alignement et réservation de la mémoire
+    int size = getTypeSize(varType);
+    stackOffset = alignStackOffset(stackOffset, size);
+    currentScope->insert(varName, stackOffset, varType);
+    stackOffset -= size;
+
+    // Debug
+    std::cout << "# Déclaration : " << varName << " (" << typeToString(varType) << ") -> " 
               << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;
-    if(ctx->expr()){
+
+    // Évaluation de l'expression si initialisation
+    if (ctx->expr()) {
         this->visit(ctx->expr()); 
     }
-    
+
     return 0;
 }
 
