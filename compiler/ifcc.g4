@@ -2,7 +2,9 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' block ;
+TYPE : 'int' | 'double' ;
+
+prog : TYPE 'main' '(' ')' block ;
 
 block : '{' stmt* '}' ;
 
@@ -14,7 +16,7 @@ stmt : declaration ';'
      | if_stmt
      | while_stmt;
 
-declaration : 'int' VAR ('=' expr)? ;
+declaration : TYPE VAR ('=' expr)? ;
 
 assignment: VAR '=' expr ;
 
@@ -48,7 +50,10 @@ expr
 function_call : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
 
 VAR : [a-zA-Z_][a-zA-Z_0-9]* ;
-CONST : [0-9]+ ;
+CONST
+    : [0-9]+ ('.' [0-9]*)?     // 3 ou 3.14
+    | '.' [0-9]+              // .42
+    ;
 CHAR : '\'' . '\'' ;
 
 COMMENT : '/*' .*? '*/' -> skip ;
