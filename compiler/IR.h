@@ -801,16 +801,10 @@ public:
 			lastExprType = DOUBLE;
 
 			if (leftType == INT) {
-				
-				leftOffset = to_string(cfg->nextFreeSymbolIndex);
-				cfg->nextFreeSymbolIndex -= 8;
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset, leftOffset});
 			}
 			if (rightType == INT) {
-				
-				rightOffset = to_string(cfg->nextFreeSymbolIndex);
-				cfg->nextFreeSymbolIndex -= 8;
-				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
+				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset, rightOffset});
 			}
 		} else {
 			lastExprType = INT;
@@ -870,18 +864,10 @@ public:
 	
 		if (leftType == DOUBLE || rightType == DOUBLE) {
 			lastExprType = DOUBLE;
-			if (leftType == INT) {
-				
-				leftOffset = to_string(cfg->nextFreeSymbolIndex);
-				cfg->nextFreeSymbolIndex -= 8;
+			if (leftType == INT)
 				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
-			}
-			if (rightType == INT) {
-				
-				rightOffset = to_string(cfg->nextFreeSymbolIndex);
-				cfg->nextFreeSymbolIndex -= 8;
+			if (rightType == INT)
 				cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
-			}
 		} else {
 			lastExprType = INT;
 		}
@@ -913,6 +899,7 @@ public:
 		char c = text[1];						   // le caractère réel entre les apostrophes
 		string asciiValue = to_string(static_cast<int>(c));
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {asciiValue});
+		lastExprType = INT;
 		return 0;
 	}
 
