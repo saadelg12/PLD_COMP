@@ -106,7 +106,7 @@ public:
 	void gen_asm(ostream &o);
 	void gen_asm_prologue(ostream &o);
 	void gen_asm_epilogue(ostream &o);
-
+	
 	string IR_reg_to_asm(string param) const {
 		// Si c'est un offset explicite (ex: "-4"), on le traite directement
 		if (std::all_of(param.begin(), param.end(), [](char c) { return std::isdigit(c) || c == '-'; })) {
@@ -138,25 +138,6 @@ public:
 		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
 		return current_symbol_table->get(name).symbolType;
 	}
-
-	string create_new_tempvar(Type t)
-	{
-		// On utilise directement l'offset actuel
-		int offset = nextFreeSymbolIndex;
-
-		// On enregistre ce symbole dans la table, même si on n'utilise plus son nom
-		Symbol s;
-		s.symbolName = to_string(offset); // utile uniquement pour traçage/debug éventuel
-		s.symbolOffset = offset;
-		s.symbolType = t;
-		symbolTable.at(currentST_index)->table[s.symbolName] = s;
-
-		nextFreeSymbolIndex -= 4;
-
-		// On retourne l'offset en string pour l'utiliser directement dans l'IR
-		return to_string(offset);
-	}
-
 
 	int currentST_index;
 	int last_ST_index;
@@ -333,14 +314,14 @@ void IRInstr::gen_asm(ostream &o)
 		const std::string& funcName = params[0];
 
 		if (funcName == "putchar") {
-			std::string arg = bb->cfg->IR_reg_to_asm(params[1]);
-			o << "    movl " << arg << ", %edi\n";
-			o << "    call putchar\n";
+			std::string arg = params[1];
+			o << "    movl " << arg << "(%rbp), %edi\n";
+			o << "    call _putchar\n";
 		}
 		else if (funcName == "getchar") {
-			std::string dst = bb->cfg->IR_reg_to_asm(params[1]);
-			o << "    call getchar\n";
-			o << "    movl %eax, " << dst << "\n";
+			std::string dst = params[1];
+			o << "    call _getchar\n";
+			o << "    movl %eax, " << dst << "(%rbp)\n";
 		}
 		break;
 	}
@@ -348,6 +329,17 @@ void IRInstr::gen_asm(ostream &o)
 
 	default:
 		break;
+	}
+}
+
+// ---------- ASSEMBLEUR POUR ARM ----------
+void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op) {
+	int offset = std::stoi(offset_str);
+	if (offset <= 255 && offset >= -255) {
+		o << "    " << op << " " << reg << ", [sp, #" << -offset << "]\n";
+	} else {
+		o << "    sub x3, sp, #" << -offset << "\n";
+		o << "    " << op << " " << reg << ", [x3]\n";
 	}
 }
 
@@ -363,42 +355,44 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case ldvar:
-		o << "    ldr w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "ldr");
 		break;
 
 	case copy:
-		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
+	
 
 	case add:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    add w0, w1, w2\n";
 		break;
+	
 
 	case sub:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sub w0, w1, w2\n";
 		break;
 
 	case mul:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    mul w0, w1, w2\n";
 		break;
 
 	case div:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sdiv w0, w1, w2\n";
 		break;
 
 	case mod:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sdiv w3, w1, w2\n";
-		o << "    msub w0, w3, w2, w1\n"; // mod = a - (a / b) * b
+		o << "    msub w0, w3, w2, w1\n";
 		break;
 
 	case neg:
@@ -411,7 +405,7 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case cmp_expr:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
 		o << "    cmp w0, w1\n";
 		if (params[1] == "sete")
 			o << "    cset w0, eq\n";
@@ -428,44 +422,44 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case cmp_lt:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, lt\n";
-		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case cmp_le:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, le\n";
-		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case cmp_ge:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, ge\n";
-		o << "    str w0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case bitwise_and:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    and w0, w1, w2\n";
 		break;
 
 	case bitwise_or:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    orr w0, w1, w2\n";
 		break;
 
 	case bitwise_xor:
-		o << "    ldr w1, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    eor w0, w1, w2\n";
 		break;
 
@@ -483,6 +477,22 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 	case jump:
 		o << "    b " << params[0] << "\n";
 		break;
+
+	case call:
+		{
+			const std::string& funcName = params[0];
+		
+			if (funcName == "putchar") {
+				emit_arm_offset(o, "w0", params[1], "ldr");
+				o << "    bl putchar\n";
+			}
+			else if (funcName == "getchar") {
+				o << "    bl getchar\n";
+				emit_arm_offset(o, "w0", params[1], "str");
+			}
+			break;
+		}
+		
 	}
 }
 
@@ -607,6 +617,7 @@ public:
 		return 0;
 	}
 
+	
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
 		// cout<<"visitAssignment\n";
@@ -620,6 +631,7 @@ public:
 		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
 		return value;
 	}
+	
 
 	antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	{
@@ -633,7 +645,6 @@ public:
 
 	antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override
 	{
-		// std::string temp = cfg->create_new_tempvar(INT);
 		// string offset =  to_string(cfg->get_var_index(temp))+ "(%rbp)";
 		std::string value = ctx->CONST()->getText();
 		cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {value});
@@ -916,15 +927,17 @@ public:
 		if (funcName == "putchar") {
 			visit(ctx->expr(0));  // Place l'argument dans %eax
 	
-			std::string temp = cfg->create_new_tempvar(INT);   // Crée une var temporaire
-			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {temp}); // Sauvegarde %eax
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", temp});
+			cfg->nextFreeSymbolIndex -= 4;
+			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
 			return 0;
 		}
 		else if (funcName == "getchar") {
-			std::string temp = cfg->create_new_tempvar(INT);
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", temp});
-			return temp;
+			cfg->nextFreeSymbolIndex -= 4;
+			string offset = to_string(cfg->nextFreeSymbolIndex);
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
+			return 0;
 		}
 	
 		return 0;

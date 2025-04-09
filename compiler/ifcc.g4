@@ -30,7 +30,6 @@ WHILE : 'while';
 
 expr
     : function_call                     # FunctionCallExpr
-    | assignment                        # AssignementExpr 
     | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
     | expr OP=('*' | '/' | '%') expr    # MulDiv
@@ -43,6 +42,7 @@ expr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
+    | assignment                        # AssignementExpr 
     ;
 
 function_call : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
