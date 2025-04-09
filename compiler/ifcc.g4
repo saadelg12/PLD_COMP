@@ -4,13 +4,13 @@ axiom : prog EOF ;
 
 prog : function+;
 
-function: type VAR|FUNC '(' (parameter_list)? ')' block;
+functionDef: TYPE VAR|FUNC '(' (parameter_list)? ')' block;
 
 parameter_list: parameter (',' parameter)*;
 
 parameter: type VAR;
 
-type: 'int' | 'void';
+TYPE : 'int' | 'void';
 
 block : '{' stmt* '}';
 
@@ -29,6 +29,7 @@ return_stmt : RETURN expr ';' ;
 RETURN : 'return' ;
 
 functionCall : VAR|FUNC '(' (expr (',' expr)*)? ')' ;
+
 if_stmt : IF '(' expr ')' block (ELSE block)? ;
 
 expr

@@ -57,10 +57,15 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
     currentFunction = functionName;
-
+    // vector SymbolTable functionVec
+    SymbolTable * st;
+    int i = 1;
+    for each(parameter){
+            recup type+nom
+    }
     currentScope = new SymbolTable();  // Racine
     functionSymbolTables[currentFunction].push_back(currentScope);
     stackOffsets[currentFunction] = -4;
