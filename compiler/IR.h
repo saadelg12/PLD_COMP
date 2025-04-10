@@ -41,7 +41,7 @@ public:
 		ret,
 		cond_jump,
 		call,
-		jump
+		jump,
 	};
 
 	IRInstr(BasicBlock *bb_, Operation op, Type t, vector<string> params)
@@ -94,29 +94,33 @@ public:
 class CFG
 {
 public:
-	CFG(void *ast_, const SymbolTableVisitor &symtab)
+	CFG(void *ast_, const SymbolTableVisitor &symtab, const std::string &functionName_)
 		: ast(ast_),
 		  symbolTable(symtab.getSymbolTables()),
 		  nextFreeSymbolIndex(symtab.getStackOffset()),
 		  currentST_index(0),
-		  last_ST_index(0) {}
+		  last_ST_index(0),
+		  functionName(functionName_) {}
 
 	void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
 
 	void gen_asm(ostream &o);
 	void gen_asm_prologue(ostream &o);
 	void gen_asm_epilogue(ostream &o);
-	
-	string IR_reg_to_asm(string param) const {
+
+	string IR_reg_to_asm(string param) const
+	{
 		// Si c'est un offset explicite (ex: "-4"), on le traite directement
-		if (std::all_of(param.begin(), param.end(), [](char c) { return std::isdigit(c) || c == '-'; })) {
+		if (std::all_of(param.begin(), param.end(), [](char c)
+						{ return std::isdigit(c) || c == '-'; }))
+		{
 			int offset = std::stoi(param);
 			if (is_arm)
 				return "[sp, #" + to_string(-offset) + "]"; // ARM utilise des offsets positifs
 			else
-				return to_string(offset) + "(%rbp)";        // X86 utilise des offsets négatifs
+				return to_string(offset) + "(%rbp)"; // X86 utilise des offsets négatifs
 		}
-	
+
 		// Sinon, c'est un nom de variable ou de temporaire, on cherche son offset dans la symbol table
 		int offset = get_var_index(param);
 		if (is_arm)
@@ -124,7 +128,6 @@ public:
 		else
 			return to_string(offset) + "(%rbp)";
 	}
-	
 
 	int get_var_index(const string &name) const
 	{
@@ -148,6 +151,8 @@ public:
 
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
+
+	string functionName;
 
 private:
 	void *ast;
@@ -308,23 +313,32 @@ void IRInstr::gen_asm(ostream &o)
 	{
 		o << "    jmp " << params[0] << "\n";
 	}
-	
-	case call:
-	{
-		const std::string& funcName = params[0];
 
-		if (funcName == "putchar") {
-			std::string arg = params[1];
-			o << "    movl " << arg << "(%rbp), %edi\n";
-			o << "    call _putchar\n";
-		}
-		else if (funcName == "getchar") {
-			std::string dst = params[1];
-			o << "    call _getchar\n";
-			o << "    movl %eax, " << dst << "(%rbp)\n";
-		}
-		break;
+	case call:
+{
+	const string& funcName = params[0];
+
+	if (funcName == "putchar") {
+		const string& argOffset = params[1];
+		o << "    movl " << argOffset << "(%rbp), %edi\n";
+		o << "    call _putchar\n";
 	}
+	else if (funcName == "getchar") {
+		const string& resOffset = params[1];
+		o << "    call _getchar\n";
+		o << "    movl %eax, " << resOffset << "(%rbp)\n";
+	}
+	else { // fonctions utilisateurs
+		const string& argOffset = params[1];
+		const string& resOffset = params[2];
+		o << "    movl " << argOffset << "(%rbp), %edi\n";
+		o << "    call _" << funcName << "\n";
+		o << "    movl %eax, " << resOffset << "(%rbp)\n";
+	}
+
+	break;
+}
+
 
 
 	default:
@@ -333,11 +347,15 @@ void IRInstr::gen_asm(ostream &o)
 }
 
 // ---------- ASSEMBLEUR POUR ARM ----------
-void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op) {
+void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op)
+{
 	int offset = std::stoi(offset_str);
-	if (offset <= 255 && offset >= -255) {
+	if (offset <= 255 && offset >= -255)
+	{
 		o << "    " << op << " " << reg << ", [sp, #" << -offset << "]\n";
-	} else {
+	}
+	else
+	{
 		o << "    sub x3, sp, #" << -offset << "\n";
 		o << "    " << op << " " << reg << ", [x3]\n";
 	}
@@ -361,14 +379,12 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 	case copy:
 		emit_arm_offset(o, "w0", params[0], "str");
 		break;
-	
 
 	case add:
 		emit_arm_offset(o, "w1", params[0], "ldr");
 		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    add w0, w1, w2\n";
 		break;
-	
 
 	case sub:
 		emit_arm_offset(o, "w1", params[0], "ldr");
@@ -479,20 +495,21 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case call:
+	{
+		const std::string &funcName = params[0];
+
+		if (funcName == "putchar")
 		{
-			const std::string& funcName = params[0];
-		
-			if (funcName == "putchar") {
-				emit_arm_offset(o, "w0", params[1], "ldr");
-				o << "    bl putchar\n";
-			}
-			else if (funcName == "getchar") {
-				o << "    bl getchar\n";
-				emit_arm_offset(o, "w0", params[1], "str");
-			}
-			break;
+			emit_arm_offset(o, "w0", params[1], "ldr");
+			o << "    bl putchar\n";
 		}
-		
+		else if (funcName == "getchar")
+		{
+			o << "    bl getchar\n";
+			emit_arm_offset(o, "w0", params[1], "str");
+		}
+		break;
+	}
 	}
 }
 
@@ -539,9 +556,9 @@ void CFG::gen_asm(std::ostream &o)
 {
 	if (is_arm)
 	{
-		o << "    .globl _main\n";
+		o << "    .globl _" << functionName << "\n";
 		o << "    .p2align 2\n";
-		o << "_main:\n";
+		o << "_" << functionName << ":\n";
 
 		int total = -nextFreeSymbolIndex;
 		if (total % 16 != 0)
@@ -554,41 +571,47 @@ void CFG::gen_asm(std::ostream &o)
 
 		for (auto bb : bbs)
 		{
-			bb->gen_asm(o); // Ça imprime les labels et les instructions
+			bb->gen_asm(o);
 		}
-
 		return;
 	}
 
-	// X86 fallback
+	// X86
 #ifdef __APPLE__
-	o << ".globl _main\n";
-	o << "_main:\n";
+	o << ".globl _" << functionName << "\n";
+	o << "_" << functionName << ":\n";
 #else
-	o << ".globl main\n";
-	o << "main:\n";
+	o << ".globl " << functionName << "\n";
+	o << functionName << ":\n";
 #endif
 
 	gen_asm_prologue(o);
 
 	currentST_index = 1;
+
 	for (auto bb : bbs)
 	{
 		bb->gen_asm(o);
 	}
-
-	// gen_asm_epilogue(o);
 }
 
 // ---------- IRGenerator ----------
 class IRGenerator : public ifccBaseVisitor
 {
 public:
-	IRGenerator(CFG *cfg_) : cfg(cfg_)
+	IRGenerator(const SymbolTableVisitor &symtab_) : symtab(symtab_) {}
+
+	std::vector<CFG *> cfgs; // Un CFG par fonction
+	CFG *cfg;				 // CFG en cours de traitement
+	const SymbolTableVisitor &symtab;
+
+	antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override
 	{
-		BasicBlock *current_bb = new BasicBlock(cfg, "entry");
-		cfg->current_bb = current_bb;
-		cfg->add_bb(current_bb);
+		for (auto func : ctx->function_decl())
+		{
+			visit(func);
+		}
+		return 0;
 	}
 
 	antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override
@@ -602,7 +625,7 @@ public:
 	{
 		// cout<<"visitDeclaration\n";
 		std::string varName = ctx->VAR()->getText();
-		string offset = to_string(cfg->get_var_index(varName));
+		string offset = to_string(cfg->symbolTable.back()->get(varName).symbolOffset);
 		Type type = cfg->get_var_type(varName);
 		if (ctx->expr())
 		{
@@ -617,12 +640,11 @@ public:
 		return 0;
 	}
 
-	
 	antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override
 	{
 		// cout<<"visitAssignment\n";
 		std::string varName = ctx->VAR()->getText();
-		string offset = to_string(cfg->get_var_index(varName));
+		string offset = to_string(cfg->symbolTable.back()->get(varName).symbolOffset);
 		Type type = cfg->get_var_type(varName);
 		// std::string rhs = any_cast<std::string>(visit(ctx->expr()));
 		// string rhsOffset =  to_string(cfg->get_var_index(rhs)) + "(%rbp)";
@@ -631,13 +653,12 @@ public:
 		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
 		return value;
 	}
-	
 
 	antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override
 	{
 		// return ctx->VAR()->getText();
 		std::string varName = ctx->VAR()->getText();
-		string offset = to_string(cfg->get_var_index(varName));
+		string offset = to_string(cfg->symbolTable.back()->get(varName).symbolOffset);
 		Type type = cfg->get_var_type(varName);
 		cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {offset});
 		return 0;
@@ -831,77 +852,82 @@ public:
 
 	antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx)
 	{
-		
-		//if (truc = true ) : jump vers le if bloc sinon vers le else bloc
-		// cfg->current_bb->test_var_name = any_cast<std::string>(visit(ctx->expr()));
-		// string offset =  to_string(cfg->get_var_index(cfg->current_bb->test_var_name))+ "(%rbp)";
+
+		// if (truc = true ) : jump vers le if bloc sinon vers le else bloc
+		//  cfg->current_bb->test_var_name = any_cast<std::string>(visit(ctx->expr()));
+		//  string offset =  to_string(cfg->get_var_index(cfg->current_bb->test_var_name))+ "(%rbp)";
 		visit(ctx->expr());
 		int bbs_size = cfg->bbs.size();
 
-		std::string if_label ="label" + to_string(bbs_size);
-		BasicBlock * true_exit_bb = new BasicBlock(cfg, if_label);
-		BasicBlock * previous_bb = cfg->current_bb;
+		std::string if_label = "label" + to_string(bbs_size);
+		BasicBlock *true_exit_bb = new BasicBlock(cfg, if_label);
+		BasicBlock *previous_bb = cfg->current_bb;
 		cfg->current_bb->exit_true = true_exit_bb;
 		cfg->current_bb = true_exit_bb;
 		cfg->add_bb(true_exit_bb);
-		
-		
+
 		if (ctx->block(1))
 		{
 			bbs_size = cfg->bbs.size();
 			string else_label = "label" + to_string(bbs_size);
-			BasicBlock * false_exit_bb = new BasicBlock(cfg, else_label);
+			BasicBlock *false_exit_bb = new BasicBlock(cfg, else_label);
 			previous_bb->exit_false = false_exit_bb;
 			cfg->add_bb(false_exit_bb);
-			
 		}
-		else{
+		else
+		{
 			previous_bb->exit_false = nullptr;
 		}
 		bbs_size = cfg->bbs.size();
 		string next_label = "label" + to_string(bbs_size);
-		BasicBlock * next_bb = new BasicBlock(cfg, next_label);
+		BasicBlock *next_bb = new BasicBlock(cfg, next_label);
 		cfg->add_bb(next_bb);
 
 		previous_bb->exit_true->exit = next_bb;
-		if(previous_bb->exit_false) {previous_bb->exit_false->exit = next_bb;}
+		if (previous_bb->exit_false)
+		{
+			previous_bb->exit_false->exit = next_bb;
+		}
 		next_bb->exit = previous_bb->exit;
-		
+
 		visit(ctx->block(0));
-		if(previous_bb->exit_false){
+		if (previous_bb->exit_false)
+		{
 			cfg->current_bb = previous_bb->exit_false;
 			visit(ctx->block(1));
 		}
-		
+
 		cfg->current_bb = next_bb;
-		
+
 		std::string else_or_next_label;
-		if(previous_bb->exit_false){
+		if (previous_bb->exit_false)
+		{
 			else_or_next_label = previous_bb->exit_false->label;
-		}else{
-			 else_or_next_label = next_bb->label;
 		}
-		
-		previous_bb->add_IRInstr(IRInstr::cond_jump, INT, {if_label,else_or_next_label});
-		
-		
+		else
+		{
+			else_or_next_label = next_bb->label;
+		}
+
+		previous_bb->add_IRInstr(IRInstr::cond_jump, INT, {if_label, else_or_next_label});
+
 		return 0;
 	}
 
 	antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 	{
-		
+
 		int bbs_size = cfg->bbs.size();
-		std::string condition_bb_label ="label" + to_string(bbs_size);
-		BasicBlock * condition_bb = new BasicBlock(cfg, condition_bb_label);
+		std::string condition_bb_label = "label" + to_string(bbs_size);
+		BasicBlock *condition_bb = new BasicBlock(cfg, condition_bb_label);
 		cfg->add_bb(condition_bb);
 		bbs_size = cfg->bbs.size();
-		std::string bb_true__label ="label" + to_string(bbs_size);
-		BasicBlock * bb_true = new BasicBlock(cfg, bb_true__label);
+		std::string bb_true__label = "label" + to_string(bbs_size);
+		BasicBlock *bb_true = new BasicBlock(cfg, bb_true__label);
 		cfg->add_bb(bb_true);
 		bbs_size = cfg->bbs.size();
-		std::string bb_false_label ="label" + to_string(bbs_size);
-		BasicBlock * bb_false = new BasicBlock(cfg, bb_false_label);
+		std::string bb_false_label = "label" + to_string(bbs_size);
+		BasicBlock *bb_false = new BasicBlock(cfg, bb_false_label);
 		cfg->add_bb(bb_false);
 		condition_bb->exit_true = bb_true;
 		condition_bb->exit_false = bb_false;
@@ -911,38 +937,103 @@ public:
 		cfg->current_bb->add_IRInstr(IRInstr::jump, INT, {condition_bb_label});
 		cfg->current_bb = condition_bb;
 		visit(ctx->expr());
-		cfg->current_bb->add_IRInstr(IRInstr::cond_jump, INT, {bb_true__label,bb_false_label});
+		cfg->current_bb->add_IRInstr(IRInstr::cond_jump, INT, {bb_true__label, bb_false_label});
 
 		cfg->current_bb = bb_true;
 		visit(ctx->block());
 		cfg->current_bb = bb_false;
 
-
 		return 0;
 	}
 
-	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override {
+	antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override
+	{
 		std::string funcName = ctx->VAR()->getText();
-	
-		if (funcName == "putchar") {
-			visit(ctx->expr(0));  // Place l'argument dans %eax
-	
-			cfg->nextFreeSymbolIndex -= 4;
-			string offset = to_string(cfg->nextFreeSymbolIndex);
-			cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
-			return 0;
-		}
-		else if (funcName == "getchar") {
-			cfg->nextFreeSymbolIndex -= 4;
-			string offset = to_string(cfg->nextFreeSymbolIndex);
-			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
-			return 0;
-		}
-	
-		return 0;
-	}	
 
-private:
-	CFG *cfg;
+		// Si getchar : pas d'argument à passer
+		if (funcName == "getchar") {
+			cfg->nextFreeSymbolIndex -= 4;
+			string resOffset = to_string(cfg->nextFreeSymbolIndex);
+		
+			cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, resOffset});
+			return resOffset;
+		}
+		
+
+		// Sinon (putchar ou fonction utilisateur)
+		visit(ctx->expr(0));
+
+		cfg->nextFreeSymbolIndex -= 4;
+		string argOffset = to_string(cfg->nextFreeSymbolIndex);
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {argOffset});
+
+		cfg->nextFreeSymbolIndex -= 4;
+		string resOffset = to_string(cfg->nextFreeSymbolIndex);
+
+		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, argOffset, resOffset});
+
+		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {resOffset});
+
+
+		return resOffset;
+	}
+
+	antlrcpp::Any visitFunction_decl(ifccParser::Function_declContext *ctx) override
+{
+    std::string funcName = ctx->VAR()->getText();
+
+    std::cout << "# Génération IR de la fonction " << funcName << std::endl;
+
+    // Création du nouveau CFG pour la fonction
+    CFG *newCFG = new CFG(ctx, symtab, funcName);
+    cfgs.push_back(newCFG);
+    cfg = newCFG;
+
+    // RESET de l'index des temporaires pour cette fonction
+    cfg->nextFreeSymbolIndex = symtab.getStackOffset();
+
+    // Initialisation de la Symbol Table
+    cfg->currentST_index = 1;
+
+    // Création du BasicBlock d'entrée
+    BasicBlock *entryBB = new BasicBlock(cfg, funcName + "_entry");
+    cfg->current_bb = entryBB;
+    cfg->add_bb(entryBB);
+
+    // Gestion des paramètres de la fonction
+    if (ctx->param_list())
+    {
+        for (size_t i = 0; i < ctx->param_list()->VAR().size(); i++)
+        {
+            std::string paramName = ctx->param_list()->VAR(i)->getText();
+            int paramOffset = cfg->get_var_index(paramName);
+
+            // Le premier paramètre est dans %edi, on le copie dans son emplacement mémoire
+            if (i == 0)
+            {
+                // On déplace %edi (premier paramètre) dans l'emplacement mémoire approprié
+                entryBB->add_IRInstr(IRInstr::copy, INT, {std::to_string(paramOffset)});
+            }
+            else
+            {
+                // Pour les autres paramètres, tu peux les gérer à partir des registres suivants
+                // Si tu veux gérer les paramètres suivants, tu pourrais utiliser %esi, %edx, etc.
+                // Mais pour l'instant, nous ne gérons que le premier paramètre (dans %edi)
+            }
+        }
+    }
+
+    // Génération de l'IR pour le corps de la fonction
+    visit(ctx->block());
+
+    // Si jamais il n'y a pas de return explicite
+    if (cfg->current_bb->instrs.empty() || cfg->current_bb->instrs.back()->getOperation() != IRInstr::ret)
+    {
+        cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {});
+    }
+
+    return 0;
+}
+
+
 };

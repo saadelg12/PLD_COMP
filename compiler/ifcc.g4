@@ -2,7 +2,11 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' block ;
+prog : (function_decl)+ ;
+
+function_decl : 'int' VAR '(' param_list? ')' block ;
+
+param_list : 'int' VAR (',' 'int' VAR)* ;
 
 block : '{' stmt* '}' ;
 

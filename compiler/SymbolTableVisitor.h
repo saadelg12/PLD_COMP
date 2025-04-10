@@ -36,6 +36,8 @@ public:
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
+    virtual antlrcpp::Any visitFunction_decl(ifccParser::Function_declContext *ctx) override;
+
     
     
     void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée

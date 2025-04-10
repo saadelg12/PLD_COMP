@@ -76,25 +76,37 @@ int main(int argn, const char **argv)
     symbolTableVisitor.checkHasReturn();
 
     // IR + Assembleur
-    CFG cfg(tree, symbolTableVisitor);
-    cfg.is_arm = use_arm;
 
-    IRGenerator irgen(&cfg);
+    IRGenerator irgen(symbolTableVisitor);
     irgen.visit(tree);
-    cerr << ">>> IR généré." << endl;
 
-    cerr << ">>> Nombre de BasicBlocks : " << cfg.bbs.size() << endl;
-    for (auto *bb : cfg.bbs)
-    {
-        cerr << "  - BasicBlock '" << bb->label << "' avec " << bb->instrs.size() << " instruction(s)" << endl;
-        for (auto *instr : bb->instrs)
-        {
-            cerr << "    - Instruction : " << instr->getOperation() << endl;
-        }
+    for (auto* cfg : irgen.cfgs) {
+        cfg->is_arm = use_arm;
     }
 
-    cerr << ">>> Génération de l'assembleur..." << endl;
-    cfg.gen_asm(std::cout);
+    cerr << ">>> IR généré." << endl;
+
+    cerr << ">>> IR généré." << endl;
+
+    cerr << ">>> Nombre de fonctions : " << irgen.cfgs.size() << endl;
+
+    for (auto* cfg : irgen.cfgs) {
+        cfg->is_arm = use_arm;
+
+        cerr << "  -> Fonction " << cfg->functionName << " avec " << cfg->bbs.size() << " BasicBlock(s)" << endl;
+
+        for (auto *bb : cfg->bbs)
+        {
+            cerr << "    - BasicBlock '" << bb->label << "' avec " << bb->instrs.size() << " instruction(s)" << endl;
+            for (auto *instr : bb->instrs)
+            {
+                cerr << "      - Instruction : " << instr->getOperation() << endl;
+            }
+        }
+
+        cfg->gen_asm(std::cout);
+    }
+
     cerr << ">>> Fin de la génération assembleur." << endl;
 
     return 0;
