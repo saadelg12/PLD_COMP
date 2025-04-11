@@ -16,13 +16,8 @@ using namespace std;
 
 int main(int argn, const char **argv)
 {
-    cerr << ">>> ifcc démarre avec " << argn << " argument(s)" << endl;
-
-    // Déclaration du flag pour le backend ARM
-    bool use_arm = false;
-
-    // Gestion des arguments
     stringstream in;
+
     if (argn >= 2)
     {
         ifstream lecture(argv[1]);
@@ -33,15 +28,6 @@ int main(int argn, const char **argv)
         }
 
         in << lecture.rdbuf();
-        cerr << ">>> Contenu du fichier lu :\n" << in.str() << endl;
-
-        // Vérifie si --arm a été passé
-        for (int i = 2; i < argn; ++i) {
-            if (string(argv[i]) == "--arm") {
-                use_arm = true;
-                cerr << ">>> Compilation ciblée ARM activée" << endl;
-            }
-        }
     }
     else
     {
@@ -49,8 +35,18 @@ int main(int argn, const char **argv)
         exit(1);
     }
 
-    ANTLRInputStream input(in.str());
+    // Gestion du flag --arm
+    bool use_arm = false;
+    for (int i = 2; i < argn; ++i) {
+        if (string(argv[i]) == "--arm") {
+            use_arm = true;
+            cerr << ">>> Compilation ciblée ARM activée" << endl;
+        }
+    }
 
+    cerr << ">>> Contenu du fichier lu :\n" << in.str() << endl;
+
+    ANTLRInputStream input(in.str());
     ifccLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();
@@ -99,7 +95,3 @@ int main(int argn, const char **argv)
 
     return 0;
 }
-
-
-
-
