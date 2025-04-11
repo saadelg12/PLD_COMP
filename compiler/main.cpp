@@ -69,29 +69,38 @@ int main(int argn, const char **argv)
     cerr << ">>> Visite de la table des symboles OK." << endl;
 
     symbolTableVisitor.checkUnusedVariables();
-    symbolTableVisitor.checkHasReturn();
 
     // IR + Assembleur
-    CFG cfg(tree, symbolTableVisitor);
-    cfg.is_arm = use_arm;
-
-    IRGenVisitor irgen(&cfg);
+    CFG placeholder_cfg("__placeholder__", nullptr, symbolTableVisitor);
+    placeholder_cfg.is_arm = use_arm;
+    
+    IRGenVisitor irgen(&placeholder_cfg, &symbolTableVisitor);
     irgen.visit(tree);
     cerr << ">>> IR généré." << endl;
 
-    cerr << ">>> Nombre de BasicBlocks : " << cfg.bbs.size() << endl;
-    for (auto *bb : cfg.bbs)
-    {
-        cerr << "  - BasicBlock '" << bb->label << "' avec " << bb->instrs.size() << " instruction(s)" << endl;
-        for (auto *instr : bb->instrs)
-        {
-            cerr << "    - Instruction : " << instr->getOperation() << endl;
+    // Section .rodata (constantes double globales)
+    const auto& doubleConsts = irgen.getDoubleConstants();
+    if (!doubleConsts.empty()) {
+        cout << "\n    .section .rodata\n";
+        for (const auto& pair : doubleConsts) {
+            cout << pair.second << ":\n";
+            cout << "    .double " << pair.first << "\n";
         }
+        cout << "    .text\n";
     }
 
-    cerr << ">>> Génération de l'assembleur..." << endl;
-    cfg.gen_asm(std::cout);
-    cerr << ">>> Fin de la génération assembleur." << endl;
+    // Génération assembleur pour chaque CFG
+    for (const auto& [funcName, cfg] : irgen.getCFGMap()) {
+        cfg->is_arm = use_arm;
+        cerr << ">>> Fonction : " << funcName << " (" << cfg->bbs.size() << " blocs)\n";
+        for (auto *bb : cfg->bbs)
+        {
+            cerr << "  - BasicBlock '" << bb->label << "' avec " << bb->instrs.size() << " instruction(s)" << endl;
+        }
 
+        cfg->gen_asm(std::cout);
+    }
+
+    cerr << ">>> Fin de la génération assembleur." << endl;
     return 0;
 }
