@@ -2,9 +2,15 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-TYPE : 'int' | 'double' ;
+prog : (functionDef | functionDec)+ ;  // Support de plusieurs fonctions
 
-prog : TYPE 'main' '(' ')' block ;
+functionDef : TYPE VAR '(' (parameter_list)? ')' block ;
+functionDec : TYPE VAR '(' (parameter_list)? ')' ';' ;
+
+parameter_list : parameter (',' parameter)* ;
+parameter : TYPE VAR ;
+
+TYPE : 'int' | 'double' | 'void' ;
 
 block : '{' stmt* '}' ;
 
@@ -32,28 +38,30 @@ WHILE : 'while';
 
 expr
     : functionCall                     # FunctionCallExpr
-    | assignment                        # AssignementExpr 
-    | '!' expr                          # NotExpr
-    | '-' expr                          # NegateExpr
-    | expr OP=('*' | '/' | '%') expr    # MulDiv
-    | expr OP=('+' | '-') expr          # AddSub
+    | assignment                       # AssignementExpr 
+    | '!' expr                         # NotExpr
+    | '-' expr                         # NegateExpr
+    | expr OP=('*' | '/' | '%') expr   # MulDiv
+    | expr OP=('+' | '-') expr         # AddSub
     | expr ('<' | '>' | '<=' | '>=' | '==' | '!=') expr   # CmpExpr
-    | expr '&' expr                     # BitwiseAndExpr
-    | expr '^' expr                     # BitwiseXorExpr
-    | expr '|' expr                     # BitwiseOrExpr
-    | '(' expr ')'                      # ParExpr
-    | VAR                               # VarExpr
-    | CONST                             # ConstExpr
-    | CHAR                              # CharConstExpr
+    | expr '&' expr                    # BitwiseAndExpr
+    | expr '^' expr                    # BitwiseXorExpr
+    | expr '|' expr                    # BitwiseOrExpr
+    | '(' expr ')'                     # ParExpr
+    | VAR                              # VarExpr
+    | CONST                            # ConstExpr
+    | CHAR                             # CharConstExpr
     ;
 
-functionCall : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
+functionCall : VAR '(' (expr (',' expr)*)? ')' ;
 
 VAR : [a-zA-Z_][a-zA-Z_0-9]* ;
+
 CONST
     : [0-9]+ ('.' [0-9]*)?     // 3 ou 3.14
     | '.' [0-9]+              // .42
     ;
+
 CHAR : '\'' . '\'' ;
 
 COMMENT : '/*' .*? '*/' -> skip ;
