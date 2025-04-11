@@ -1,6 +1,7 @@
 #include "IRGenVisitor.h"
 
-IRGenVisitor::IRGenVisitor(CFG *cfg_) : cfg(cfg_) {
+IRGenVisitor::IRGenVisitor(CFG* cfg_, SymbolTableVisitor* symtab)
+    : cfg(cfg_), symbolTableVisitor(symtab){
     BasicBlock *current_bb = new BasicBlock(cfg, "entry");
     cfg->current_bb = current_bb;
     cfg->add_bb(current_bb);
@@ -84,11 +85,11 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 
         // Génère une étiquette unique pour la constante si elle n’existe pas encore
         std::string label;
-        if (cfg->double_constants.count(text) == 0) {
-            label = "LC" + std::to_string(cfg->double_constant_counter++);
-            cfg->double_constants[text] = label;
+        if (double_constants.count(text) == 0) {
+            label = "LC" + std::to_string(double_constant_counter++);
+            double_constants[text] = label;
         } else {
-            label = cfg->double_constants[text];
+            label = double_constants[text];
         }
 
         value = label;  // accès mémoire relatif à RIP
@@ -432,27 +433,99 @@ antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
     return 0;
 }
 
-antlrcpp::Any IRGenVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) 
-{
+antlrcpp::Any IRGenVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) {
     std::string funcName = ctx->VAR()->getText();
 
+    // --- Fonctions standards ---
     if (funcName == "putchar") {
-        visit(ctx->expr(0));  // Place l'argument dans %eax
-
-        
-        string offset = to_string(cfg->nextFreeSymbolIndex);
+        visit(ctx->expr(0));
+        std::string offset = std::to_string(cfg->nextFreeSymbolIndex);
         cfg->nextFreeSymbolIndex -= 4;
-        cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
+        cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset});
         cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
+        lastExprType = INT;
         return 0;
-    }
-    else if (funcName == "getchar") {
-        
-        string offset = to_string(cfg->nextFreeSymbolIndex);
+    } else if (funcName == "getchar") {
+        std::string offset = std::to_string(cfg->nextFreeSymbolIndex);
         cfg->nextFreeSymbolIndex -= 4;
         cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
+        lastExprType = INT;
         return 0;
+    }
+
+    // --- Fonction utilisateur ---
+    if (cfgMap.find(funcName) == cfgMap.end()) {
+        std::cerr << "Erreur : fonction '" << funcName << "' non définie." << std::endl;
+        exit(1);
+    }
+
+    std::vector<std::string> argOffsets;
+    for (auto* expr : ctx->expr()) {
+        visit(expr);
+        Type exprType = lastExprType;
+
+        std::string offset = std::to_string(cfg->nextFreeSymbolIndex);
+        cfg->nextFreeSymbolIndex -= getTypeSize(exprType);
+
+        cfg->current_bb->add_IRInstr(IRInstr::copy, exprType, {offset});
+        argOffsets.push_back(offset);
+    }
+
+    std::vector<std::string> args = {funcName};
+    args.insert(args.end(), argOffsets.begin(), argOffsets.end());
+
+    cfg->current_bb->add_IRInstr(IRInstr::call, INT, args);
+
+    // --- Déterminer le type de retour depuis la table des symboles ---
+    if (symbolTableVisitor->getFunctionsMap().count(funcName)) {
+        lastExprType = symbolTableVisitor->getFunctionsMap().at(funcName);
+    } else {
+        std::cerr << "Erreur : type de retour inconnu pour '" << funcName << "'\n";
+        lastExprType = INT;
     }
 
     return 0;
-}	
+}
+	
+
+antlrcpp::Any IRGenVisitor::visitFunctionDef(ifccParser::FunctionDefContext* ctx) {
+    std::string functionName = ctx->VAR()->getText();
+
+    // Créer un nouveau CFG pour cette fonction
+    CFG* functionCFG = new CFG(functionName, ctx, *symbolTableVisitor);
+    cfgMap[functionName] = functionCFG;
+
+    // Préparer le bloc d’entrée
+    BasicBlock* entry_bb = new BasicBlock(functionCFG, "entry_" + functionName);
+    entry_bb->isFunctionEntry = true;
+    functionCFG->current_bb = entry_bb;
+    functionCFG->add_bb(entry_bb);
+
+    // Sauvegarder l’ancien CFG et passer à celui de la fonction
+    CFG* old_cfg = cfg;
+    cfg = functionCFG;
+
+    // Générer le code de la fonction
+    visit(ctx->block());
+
+    // Restaurer le CFG précédent
+    cfg = old_cfg;
+
+    return 0;
+}
+
+antlrcpp::Any IRGenVisitor::visitFunctionDec(ifccParser::FunctionDecContext* ctx) {
+    std::string functionName = ctx->VAR()->getText();
+
+    // Vérifie que la fonction n'est pas déjà déclarée
+    if (cfgMap.find(functionName) != cfgMap.end()) {
+        std::cerr << "Erreur : fonction '" << functionName << "' déjà définie." << std::endl;
+        exit(1);
+    }
+
+    // Pas besoin de CFG ici — juste une note que la fonction est connue
+    // Tu pourrais stocker un type ou une signature si besoin plus tard
+
+    return 0;
+}
+
