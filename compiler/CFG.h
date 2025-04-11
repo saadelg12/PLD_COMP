@@ -4,19 +4,19 @@
 #include <string>
 #include <map>
 #include <vector>
-using namespace std;
+#include <algorithm>
 
 #include "Type.h"
 #include "SymbolTableVisitor.h"
 #include "BasicBlock.h"
 
-
 // ---------- GRAPHE DE CONTRÔLE ----------
 class CFG
 {
 public:
-	CFG(void *ast_, const SymbolTableVisitor &symtab)
-		: ast(ast_),
+	CFG(std::string functionName_, void* ast_, const SymbolTableVisitor &symtab)
+		: functionName(functionName_),
+		  ast(ast_),
 		  symbolTable(symtab.getSymbolTables()),
 		  nextFreeSymbolIndex(symtab.getStackOffset()),
 		  currentST_index(0),
@@ -24,53 +24,23 @@ public:
 
 	void add_bb(BasicBlock *bb) { bbs.push_back(bb); }
 
-	void gen_asm(ostream &o);
-	void gen_asm_prologue(ostream &o);
-	void gen_asm_epilogue(ostream &o);
+	void gen_asm(std::ostream &o);
 
-	string IR_reg_to_asm(string param) const {
-		// Si c'est un offset explicite (ex: "-4"), on le traite directement
-		if (std::all_of(param.begin(), param.end(), [](char c) { return std::isdigit(c) || c == '-'; })) {
-			int offset = std::stoi(param);
-			if (is_arm)
-				return "[sp, #" + to_string(-offset) + "]"; // ARM utilise des offsets positifs
-			else
-				return to_string(offset) + "(%rbp)";        // X86 utilise des offsets négatifs
-		}
-	
-		// Sinon, c'est un nom de variable ou de temporaire, on cherche son offset dans la symbol table
-		int offset = get_var_index(param);
-		if (is_arm)
-			return "[sp, #" + to_string(-offset) + "]";
-		else
-			return to_string(offset) + "(%rbp)";
-	}
-	
+	std::string IR_reg_to_asm(std::string param) const;
 
-	int get_var_index(const string &name) const
-	{
-		// cout<< "looking for  "<<name<< " IN  "<<currentST_index<<endl;
-		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
-		int res = current_symbol_table->get(name).symbolOffset;
-		return res;
-	}
-	Type get_var_type(const string &name) const
-	{
-		SymbolTable *current_symbol_table = symbolTable.at(currentST_index);
-		return current_symbol_table->get(name).symbolType;
-	}
+	int get_var_index(const std::string &name) const;
+	Type get_var_type(const std::string &name) const;
 
+	std::string functionName;
 	int currentST_index;
 	int last_ST_index;
-	vector<BasicBlock *> bbs;
-	vector<SymbolTable *> symbolTable;
+	std::vector<BasicBlock *> bbs;
+	std::vector<SymbolTable *> symbolTable;
 	BasicBlock *current_bb;
 	int nextFreeSymbolIndex;
 
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
-	std::map<std::string, std::string> double_constants;
-	int double_constant_counter = 0;
 
 private:
 	void *ast;
