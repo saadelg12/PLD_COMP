@@ -9,7 +9,7 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "SymbolTableVisitor.h"
-#include "IR.h"
+#include "IRGenVisitor.h"
 
 using namespace antlr4;
 using namespace std;
@@ -79,7 +79,7 @@ int main(int argn, const char **argv)
     CFG cfg(tree, symbolTableVisitor);
     cfg.is_arm = use_arm;
 
-    IRGenerator irgen(&cfg);
+    IRGenVisitor irgen(&cfg);
     irgen.visit(tree);
     cerr << ">>> IR généré." << endl;
 

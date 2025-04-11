@@ -31,7 +31,7 @@ ELSE: 'else';
 WHILE : 'while';
 
 expr
-    : function_call                     # FunctionCallExpr
+    : functionCall                     # FunctionCallExpr
     | assignment                        # AssignementExpr 
     | '!' expr                          # NotExpr
     | '-' expr                          # NegateExpr
@@ -47,7 +47,7 @@ expr
     | CHAR                              # CharConstExpr
     ;
 
-function_call : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
+functionCall : VAR '(' (expr (',' expr)*)? ')' ;  // <- bien placée ici
 
 VAR : [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST
