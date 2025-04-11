@@ -245,6 +245,22 @@ void IRInstr::gen_asm(ostream &o)
 			o << "    call getchar\n";
 			o << "    movl %eax, " << dst << "(%rbp)\n";
 		}
+		else {
+			// Fonction utilisateur
+			const std::string& funcName = params[0];
+		
+			// Charger les arguments dans les registres standards (%rdi, %rsi, ...)
+			std::vector<std::string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+			for (size_t i = 1; i < params.size(); ++i) {
+				if (i - 1 < argRegs.size()) {
+					o << "    movl " << params[i] << "(%rbp), " << argRegs[i - 1] << "\n";
+				} else {
+					o << "    # Warning: trop d'arguments pour call utilisateur\n";
+				}
+			}
+			o << "    call " << funcName << "\n";
+			// Résultat attendu dans %eax (ou %xmm0 si double)
+		}	
 		break;
 	}
 
