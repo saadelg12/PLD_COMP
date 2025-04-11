@@ -4,49 +4,60 @@
 #include <iostream>
 #include "Type.h"
 
-typedef struct {
+struct Symbol {
     std::string symbolName;
     int symbolOffset;
     Type symbolType;
-}Symbol;
+    bool used = false;  // Indique si la variable a été utilisée (par défaut non utilisée)
+};
 
 class SymbolTable {
 public:
     SymbolTable* parent;  // Pointeur vers la table parent (nullptr si global)
-    std::map<std::string, Symbol> table;  // Stocke les variables du bloc courant
+    std::map<std::string, Symbol> symbols;  // Stocke les variables du bloc courant
 
     // Constructeur par défaut
     SymbolTable() : parent(nullptr) {}
-    
+
+    // Constructeur par copie
     SymbolTable(const SymbolTable& other) {
-        // Copier les symboles de l'autre table (si tu as une structure comme un std::map, std::unordered_map, etc.)
-        this->table = other.table;  // Cela suppose que `table` est une structure de données comme un `std::unordered_map` ou autre.
-        
-        // Copier d'autres membres si nécessaire
-        this->parent = other.parent;  // Parent peut être partagé, ou tu peux aussi le définir différemment si nécessaire.
+        this->symbols = other.symbols;
+        this->parent = other.parent;
     }
 
     // Vérifie si une variable existe dans le scope courant
     bool contains(const std::string& varName) {
-        return table.find(varName) != table.end();
+        return symbols.find(varName) != symbols.end();
+    }
+
+    // Vérifie si une variable est déclarée dans n'importe quel scope
+    bool exists(const std::string& varName) {
+        if (symbols.find(varName) != symbols.end()) {
+            return true;
+        }
+        if (parent) {
+            return parent->exists(varName);
+        }
+        return false;
     }
 
     // Insère une variable dans le scope courant
-    void insert(const std::string& varName, int offset,Type type) {
+    void insert(const std::string& varName, int offset, Type type) {
         Symbol s;
         s.symbolName = varName;
         s.symbolOffset = offset;
-        s.symbolType=type;
-        table[varName] = s;
+        s.symbolType = type;
+        s.used = false;
+        symbols[varName] = s;
     }
 
     // Récupère la valeur d'une variable, en cherchant aussi dans les scopes parents
     Symbol get(const std::string& varName) {
-        if (table.find(varName) != table.end()) {
-            return table[varName];  // Trouvé dans le scope actuel
+        if (symbols.find(varName) != symbols.end()) {
+            return symbols[varName];
         }
         if (parent) {
-            return parent->get(varName);  // Rechercher dans le parent
+            return parent->get(varName);
         }
         Symbol s;
         s.symbolOffset = -1;

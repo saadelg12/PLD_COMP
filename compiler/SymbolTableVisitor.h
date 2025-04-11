@@ -7,40 +7,62 @@
 #include <set>
 #include <string>
 #include <iostream>
-#include "SymbolTable.h" 
+#include "SymbolTable.h"
+#include "Type.h"
 
 class SymbolTableVisitor : public ifccBaseVisitor {
 private:
-    SymbolTable * currentScope; 
-    std::vector<SymbolTable *> symbolTables;
-    std::set<int> usedVariables;    // Stocke les offsets des variables utilisées pour vérifier leur usage
-    int stackOffset = -4;  // Offset de la première variable (%rbp - 4)
-    bool hasReturn = false;  // Vérifie si un `return` existe
+    // Gestion par fonction
+    std::map<std::string, std::vector<SymbolTable *>> functionSymbolTables;
+    std::map<std::string, int> stackOffsets;
+    std::map<std::string, Type> functionsMap;
 
-    
-    
+    std::string currentFunction;
+    SymbolTable *currentScope = nullptr;
+    std::vector<SymbolTable *> currentFunctionTables;
+    int currentOffset = -4;
+
+    bool hasReturn = false;
 
 public:
-    SymbolTableVisitor(): currentScope(nullptr)  {symbolTables.push_back(currentScope);};
+    SymbolTableVisitor();
+
 
     ~SymbolTableVisitor() {
-        // Delete all symbol tables in reverse order (children first)
-        for (auto it = symbolTables.rbegin(); it != symbolTables.rend(); ++it) {
-            delete *it;
+        for (auto &entry : functionSymbolTables) {
+            for (auto *table : entry.second) {
+                delete table;
+            }
         }
-        symbolTables.clear();
-        currentScope = nullptr;
+        functionSymbolTables.clear();
     }
+
+    // Visiteurs
     virtual antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext *ctx) override;
     virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
     virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
-    
-    
-    void checkUnusedVariables();  // Vérifie si une variable a été déclarée mais jamais utilisée
-    void checkHasReturn();  // Vérifie si une fonction a un `return`
-    std::vector<SymbolTable *> getSymbolTables()const { return symbolTables; } // Retourne la table des symboles actuelle
-    int getStackOffset() const { return stackOffset; } // Retourne l'offset
-};
 
+    // Fonctions
+    virtual antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext *ctx) override;
+    virtual antlrcpp::Any visitFunctionDec(ifccParser::FunctionDecContext *ctx) override;
+    virtual antlrcpp::Any visitFunctionCall(ifccParser::FunctionCallContext *ctx) override;
+
+    // Vérifications
+    void checkUnusedVariables();
+    void checkHasReturn();
+
+    // Accès à l’état
+    std::vector<SymbolTable *> getSymbolTables() const {
+        return functionSymbolTables.at(currentFunction);
+    }
+
+    int getStackOffset() const {
+        return stackOffsets.at(currentFunction);
+    }
+
+    const std::map<std::string, Type> &getFunctionsMap() const {
+        return functionsMap;
+    }
+};
