@@ -27,4 +27,6 @@ public:
 	BasicBlock *exit_false = nullptr;
 	BasicBlock *exit = nullptr;
 	string test_var_name;
+	bool isFunctionEntry = false;  // Ce bloc est le point d’entrée d’une fonction
+
 };
