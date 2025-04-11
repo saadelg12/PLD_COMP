@@ -439,17 +439,15 @@ antlrcpp::Any IRGenVisitor::visitFunctionCall(ifccParser::FunctionCallContext *c
     if (funcName == "putchar") {
         visit(ctx->expr(0));  // Place l'argument dans %eax
 
-        
-        string offset = to_string(cfg->nextFreeSymbolIndex);
         cfg->nextFreeSymbolIndex -= 4;
+        string offset = to_string(cfg->nextFreeSymbolIndex);
         cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {offset}); // Sauvegarde %eax
         cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", offset});
         return 0;
     }
     else if (funcName == "getchar") {
-        
-        string offset = to_string(cfg->nextFreeSymbolIndex);
         cfg->nextFreeSymbolIndex -= 4;
+        string offset = to_string(cfg->nextFreeSymbolIndex);
         cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"getchar", offset});
         return 0;
     }

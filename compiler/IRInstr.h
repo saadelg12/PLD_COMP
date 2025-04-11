@@ -10,7 +10,11 @@ class BasicBlock;
 
 using namespace std;
 
+void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op);
+
+
 // ---------- INSTRUCTION IR ----------
+
 class IRInstr
 {
 public:
