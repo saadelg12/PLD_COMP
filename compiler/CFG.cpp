@@ -1,53 +1,27 @@
+#include "BasicBlock.h"
+
 #include "CFG.h"
 
 // ---------- ASSEMBLEUR POUR CFG ----------
-void CFG::gen_asm_prologue(ostream &o)
-{
-	o << "    pushq %rbp\n";
-	o << "    movq %rsp, %rbp\n";
-
-	int total = -nextFreeSymbolIndex;
-	if (total % 16 != 0)
-		total += (16 - (total % 16));
-	o << "    subq $64, %rsp\n";
-}
-
-void CFG::gen_asm_epilogue(ostream &o)
-{
-	o << "    leave\n";
-	o << "    ret\n";
-}
-
 void CFG::gen_asm(std::ostream &o)
 {
-	if (!double_constants.empty()) {
-		o << "\n    .section .rodata\n";
-		for (const auto &pair : double_constants) {
-			o << pair.second << ":\n";
-			o << "    .double " << pair.first << "\n";
-		}
-		o << "    .text\n";
-	}
-
-	
 	if (is_arm)
 	{
-		o << "    .globl _main\n";
+
+		for (auto st : functions)
+		{
+			string label = st.first;
+			if (st.first == "main")
+			{
+				label = "_main";
+			}
+			o << "    .globl " << label << "\n";
+		}
 		o << "    .p2align 2\n";
-		o << "_main:\n";
-
-		int total = -nextFreeSymbolIndex;
-		if (total % 16 != 0)
-			total += (16 - (total % 16));
-		stack_allocation = total;
-
-		o << "    sub sp, sp, #" << total << "\n";
-
-		currentST_index = 1;
 
 		for (auto bb : bbs)
 		{
-			bb->gen_asm(o); // Ça imprime les labels et les instructions
+			bb->gen_asm_arm(o); // Ça imprime les labels et les instructions
 		}
 
 		return;
@@ -56,14 +30,14 @@ void CFG::gen_asm(std::ostream &o)
 	// X86 fallback
 #ifdef __APPLE__
 	o << ".globl _main\n";
-	o << "_main:\n";
 #else
 	o << ".globl main\n";
-	o << "main:\n";
+	// o << "main:\n";
 #endif
 
-	gen_asm_prologue(o);
-	currentST_index = 1;
+	// gen_asm_prologue(o);
+
+	// currentST_index = 1;
 	for (auto bb : bbs)
 	{
 		bb->gen_asm(o);

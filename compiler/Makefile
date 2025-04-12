@@ -21,7 +21,7 @@ else
 endif
 
 # Options de compilation
-CCFLAGS = -g -c -std=c++11 -I$(ANTLRINC) -Wno-attributes
+CCFLAGS = -g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes
 LDFLAGS = -g
 
 default: all
@@ -35,11 +35,10 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
 	build/SymbolTableVisitor.o \
-	build/IRGenVisitor.o \
-	build/CFG.o \
+	build/IRGenerator.o \
 	build/BasicBlock.o \
-	build/IRInstr.o
-
+	build/IRInstr.o \
+	build/CFG.o 
 
 ##########################################
 # Link final

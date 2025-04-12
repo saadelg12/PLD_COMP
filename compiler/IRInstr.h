@@ -1,20 +1,13 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #include <vector>
-
-#include "Type.h"
-
-class BasicBlock;
-
 using namespace std;
 
-void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op);
-
+#include "Type.h"
+class BasicBlock; // Pré-déclaration
 
 // ---------- INSTRUCTION IR ----------
-
 class IRInstr
 {
 public:
@@ -37,10 +30,11 @@ public:
 		bitwise_and,
 		bitwise_or,
 		bitwise_xor,
-		int_to_double,
-		double_to_int,
+		prologue,
 		ret,
 		cond_jump,
+		assign_param,
+		load_param_from_reg,
 		call,
 		jump
 	};
@@ -51,7 +45,6 @@ public:
 	Operation getOperation() const { return op; }
 
 	void gen_asm(ostream &o);
-
 	void gen_asm_arm(std::ostream &o);
 
 private:
@@ -68,8 +61,6 @@ private:
 			return "l"; // long = 4 octets
 		case CHAR:
 			return "b"; // byte = 1 octet
-		case DOUBLE:
-			return "sd";// long = 8 octets
 		default:
 			return "l"; // fallback = int
 		}

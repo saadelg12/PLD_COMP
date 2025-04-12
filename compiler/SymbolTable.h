@@ -10,6 +10,10 @@ typedef struct {
     Type symbolType;
 }Symbol;
 
+
+
+
+
 class SymbolTable {
 public:
     SymbolTable* parent;  // Pointeur vers la table parent (nullptr si global)
@@ -41,13 +45,16 @@ public:
     }
 
     // Récupère la valeur d'une variable, en cherchant aussi dans les scopes parents
-    Symbol get(const std::string& varName) {
+    Symbol   get(const std::string& varName) {
+        
         if (table.find(varName) != table.end()) {
             return table[varName];  // Trouvé dans le scope actuel
         }
+        //std::cout<<"get in bbckjhcqzlkzm"<<std::endl;
         if (parent) {
             return parent->get(varName);  // Rechercher dans le parent
         }
+        //std::cout<<"get in SymbolTable"<<std::endl;
         Symbol s;
         s.symbolOffset = -1;
         return s;

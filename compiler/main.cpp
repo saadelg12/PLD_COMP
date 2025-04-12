@@ -9,7 +9,7 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "SymbolTableVisitor.h"
-#include "IRGenVisitor.h"
+#include "IRGenerator.h"
 
 using namespace antlr4;
 using namespace std;
@@ -79,8 +79,9 @@ int main(int argn, const char **argv)
     CFG cfg(tree, symbolTableVisitor);
     cfg.is_arm = use_arm;
 
-    IRGenVisitor irgen(&cfg);
+    IRGenerator irgen(&cfg);
     irgen.visit(tree);
+    /*
     cerr << ">>> IR généré." << endl;
 
     cerr << ">>> Nombre de BasicBlocks : " << cfg.bbs.size() << endl;
@@ -94,6 +95,7 @@ int main(int argn, const char **argv)
     }
 
     cerr << ">>> Génération de l'assembleur..." << endl;
+    */
     cfg.gen_asm(std::cout);
     cerr << ">>> Fin de la génération assembleur." << endl;
 

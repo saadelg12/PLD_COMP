@@ -1,112 +1,79 @@
+#include <iostream>
 #include "IRInstr.h"
-#include "BasicBlock.h"
-#include "CFG.h" 
-
 using namespace std;
 
-void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op) {
+// ---------- ASSEMBLEUR POUR IRInstr ----------
+
+string IR_reg_to_asm(string param) {
+	// Si c'est un offset explicite (ex: "-4"), on le traite directement
+		int offset = std::stoi(param);
+		return "[sp, #" + to_string(-offset) + "]"; // ARM utilise des offsets positifs
+}
+string get_register_for_param(string param){
+	if (param == "0") return "%edi";
+	else if (param == "1") return "%esi";
+	else if (param == "2") return "%edx";
+	else if (param == "3") return "%ecx";
+	else if (param == "4") return "%r8d";
+	else if (param == "5") return "%r9d";
+	else return param; // cas de plus de 6 paramètres , pas encore traité
+}
+void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op)
+{
 	int offset = std::stoi(offset_str);
-	if (offset <= 255 && offset >= -255) {
+	if (offset <= 255 && offset >= -255)
+	{
 		o << "    " << op << " " << reg << ", [sp, #" << -offset << "]\n";
-	} else {
+	}
+	else
+	{
 		o << "    sub x3, sp, #" << -offset << "\n";
 		o << "    " << op << " " << reg << ", [x3]\n";
 	}
 }
 
-// ---------- ASSEMBLEUR POUR IRInstr ----------
-
 void IRInstr::gen_asm(ostream &o)
 {
-
+	
 	string s = suffix_for_type(t); // suffix for instruction based on type
-	string dst;
-
-	// if (op != ret)
-	// {
-	// 	dst = bb->cfg->IR_reg_to_asm(params[0]);
-	// }
 
 	switch (op)
 	{
 	case ldconst:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rip), %xmm0\n";
-		} else {
-			o << "    mov" << s << " $" << params[0] << ", %eax\n";
-		}
+		o << "    mov" << s << " $" << params[0] << ", %eax\n";
 		break;
-	
+
 	case ldvar:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-		} else {
-			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-		}
-		
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
 		break;
 
 	case copy:
-		if (t == DOUBLE) {
-			o << "    movsd %xmm0, " << params[0] << "(%rbp)\n";
-		} else {
-			o << "    mov" << s << " %eax, " << params[0] << "(%rbp)\n";
-		}
+		o << "    mov" << s << " %eax, " << params[0] << "(%rbp)\n";
 		break;
-	
-	
+
 	case add:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-			o << "    addsd " << params[1] << "(%rbp), %xmm0\n";
-			// store result?
-			// o << "    movsd %xmm0, " << params[0] << "\n";
-		} else {
-			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-			o << "    add" << s << " " << params[1] << "(%rbp), %eax\n";
-		}
-		//o << "    mov" << s << " %eax, " << params[0] << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    add" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case sub:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-			o << "    subsd " << params[1] << "(%rbp), %xmm0\n";
-			// store result?
-			// o << "    movsd %xmm0, " << params[0] << "\n";
-		} else {
-			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-			o << "    sub" << s << " " << params[1] << "(%rbp), %eax\n";
-		}	
-		//o << "    mov" << s << " %eax, " << params[0] << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    sub" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mul:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-			o << "    mulsd " << params[1] << "(%rbp), %xmm0\n";
-			// store result?
-			// o << "    movsd %xmm0, " << params[0] << "\n";
-		} else {
-			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-			o << "    imul" << s << " " << params[1] << "(%rbp), %eax\n";
-		}	
-		//o << "    mov" << s << " %eax, " << params[0] << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    imul" << s << " " << params[1] << "(%rbp), %eax\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case div:
-		if (t == DOUBLE) {
-			o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-			o << "    divsd " << params[1] << "(%rbp), %xmm0\n";
-			// store result?
-			// o << "    movsd %xmm0, " << params[0] << "\n";
-		} else {
-			o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
-			o << "    cltd\n";
-			o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
-		}	
-		
-		//o << "    mov" << s << " %eax, " << params[0] << "\n";
+		o << "    mov" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    cltd\n";
+		o << "    idiv" << s << " " << params[1] << "(%rbp)\n";
+		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
 	case mod:
@@ -125,27 +92,11 @@ void IRInstr::gen_asm(ostream &o)
 		break;
 
 	case cmp_expr:
-		if (t == DOUBLE) {
-			// params[0] = offset droit, params[1] = set instruction (seta, setbe, etc.)
-	
-			o << "    movsd " << params[0] << "(%rbp), %xmm1\n"; // droite
-			o << "    ucomisd %xmm1, %xmm0\n";                    // compare xmm0 (gauche) à xmm1
-	
-			if (params[1] == "sete")        o << "    sete %al\n";
-			else if (params[1] == "setne")  o << "    setne %al\n";
-			else if (params[1] == "setl")   o << "    seta %al\n";   // a < b => unordered-safe
-			else if (params[1] == "setle")  o << "    setae %al\n";  // a <= b
-			else if (params[1] == "setg")   o << "    setb %al\n";   // a > b
-			else if (params[1] == "setge")  o << "    setbe %al\n";  // a >= b
-	
-			o << "    movzbl %al, %eax\n"; // résultat dans eax
-		} else {
-			o << "    cmp" << s << " " << params[0] << "(%rbp), %eax\n";
-			o << "    " << params[1] << " %al\n";
-			o << "    movzbl %al, %eax\n";
-		}
+		o << "    cmp" << s << " " << params[0] << "(%rbp), %eax\n";
+		o << "    " << params[1] << " %al\n";
+		o << "    movzbl %al, %eax\n";
 		break;
-	
+
 	case cmp_lt:
 		if (t == CHAR)
 		{
@@ -212,22 +163,18 @@ void IRInstr::gen_asm(ostream &o)
 		// o << "    mov" << s << " %eax, " << params[0] << "\n";
 		break;
 
-	case int_to_double:
-		//o << "    cvtsi2sd " << params[0] << "(%rbp), %xmm0\n";
-		o << "    cvtsi2sd %eax, %xmm1\n";
-		o << "    movsd %xmm1, " << params[0] << "(%rbp)\n";
-		break;
-
-	case double_to_int:
-		//o << "    movsd " << params[0] << "(%rbp), %xmm0\n";
-		o << "    cvttsd2si %xmm0, %eax\n";
-		o << "    movl %eax, " << params[0] << "(%rbp)\n";
-		break;
-
 	case ret:
 	{
-		o << "    leave\n";
-		o << "    ret\n";
+		// o << "    leave\n";
+		// o << "    ret\n";
+		std::cout << "    popq %rbp\n";         // restore %rbp from the stack
+    	std::cout << "    ret\n";               // return to the caller
+		break;
+	}
+	case prologue:
+	{
+		std::cout << "    pushq %rbp\n";        // save %rbp on the stack
+    	std::cout << "    movq %rsp, %rbp\n";   // define %rbp for the current function
 		break;
 	}
 	case cond_jump:
@@ -240,8 +187,20 @@ void IRInstr::gen_asm(ostream &o)
 	case jump:
 	{
 		o << "    jmp " << params[0] << "\n";
+		break;
 	}
-	
+	case assign_param:
+	{
+		std::string reg = get_register_for_param(params[0]);
+		o << "    mov"<<s<<" %eax, "<< reg <<"\n";
+		break;
+	}
+	case load_param_from_reg:
+	{
+		std::string reg = get_register_for_param(params[1]);
+		o << "    mov" << s << " " << reg << ", " << params[0] << "(%rbp)\n";
+		break;
+	}
 	case call:
 	{
 		const std::string& funcName = params[0];
@@ -252,9 +211,12 @@ void IRInstr::gen_asm(ostream &o)
 			o << "    call _putchar\n";
 		}
 		else if (funcName == "getchar") {
-			std::string dst = params[1];
+			std::string arg = params[1];
 			o << "    call _getchar\n";
-			o << "    movl %eax, " << dst << "(%rbp)\n";
+			o << "    movl %eax, " << arg << "(%rbp)\n";
+		}
+		else{
+			o << "    call " << funcName << "\n";
 		}
 		break;
 	}
@@ -283,14 +245,12 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 	case copy:
 		emit_arm_offset(o, "w0", params[0], "str");
 		break;
-	
 
 	case add:
 		emit_arm_offset(o, "w1", params[0], "ldr");
 		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    add w0, w1, w2\n";
 		break;
-	
 
 	case sub:
 		emit_arm_offset(o, "w1", params[0], "ldr");
@@ -386,7 +346,7 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case ret:
-		o << "    add sp, sp, #" << bb->cfg->stack_allocation << "\n";
+		o << "    add sp, sp, #" << params[0] << "\n";
 		o << "    ret\n";
 		break;
 
@@ -401,19 +361,26 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case call:
+	{
+		const std::string &funcName = params[0];
+
+		if (funcName == "putchar")
 		{
-			const std::string& funcName = params[0];
-		
-			if (funcName == "putchar") {
-				emit_arm_offset(o, "w0", params[1], "ldr");
-				o << "    bl _putchar\n";
-			}
-			else if (funcName == "getchar") {
-				o << "    bl _getchar\n";
-				emit_arm_offset(o, "w0", params[1], "str");
-			}
-			break;
+			emit_arm_offset(o, "w0", params[1], "ldr");
+			o << "    bl putchar\n";
 		}
-		
+		else if (funcName == "getchar")
+		{
+			o << "    bl getchar\n";
+			emit_arm_offset(o, "w0", params[1], "str");
+		}
+		break;
+	}
+
+	case prologue:
+	{
+		o << "    sub sp, sp, #" << params[0] << "\n";
+		break;
+	}
 	}
 }
