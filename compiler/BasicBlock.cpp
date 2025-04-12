@@ -22,7 +22,7 @@ void BasicBlock::add_IRInstrAtTop(IRInstr::Operation op, Type t, vector<string> 
 }
 void BasicBlock::gen_asm(ostream &o)
 {
-	o << "_" << this->label << ":\n";
+	o << this->label << ":\n";
 	for (auto instr : instrs)
 	{
 		instr->gen_asm(o);
@@ -33,7 +33,7 @@ void BasicBlock::gen_asm_arm(ostream &o)
 {
 	
 	if(this->label == "main"){
-		o << "_main" << ":\n";
+		o << "main" << ":\n";
 	}else{
 		o << this->label << ":\n";
 	}

@@ -13,7 +13,7 @@ void CFG::gen_asm(std::ostream &o)
 			string label = st.first;
 			if (st.first == "main")
 			{
-				label = "_main";
+				label = "main";
 			}
 			o << "    .globl " << label << "\n";
 		}
