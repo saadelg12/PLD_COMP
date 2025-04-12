@@ -41,9 +41,9 @@ void CFG::gen_asm(std::ostream &o)
 {
 	if (is_arm)
 	{
-		o << "    .globl _main\n";
-		o << "    .p2align 2\n";
-		o << "_main:\n";
+		// o << "    .globl _main\n";
+		// o << "    .p2align 2\n";
+		// o << "_main:\n";
 
 		// int total = -nextFreeSymbolIndex;
 		// if (total % 16 != 0)

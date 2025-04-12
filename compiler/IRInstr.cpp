@@ -376,5 +376,11 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		}
 		break;
 	}
+	case prologue:
+	{
+		o << "    .globl _main\n";
+		o << "    .p2align 2\n";
+		break;
+	}
 	}
 }
