@@ -41,9 +41,9 @@ void CFG::gen_asm(std::ostream &o)
 {
 	if (is_arm)
 	{
-		// o << "    .globl _main\n";
-		// o << "    .p2align 2\n";
-		// o << "_main:\n";
+		o << "    .globl _main\n";
+		o << "    .p2align 2\n";
+		o << "_main:\n";
 
 		// int total = -nextFreeSymbolIndex;
 		// if (total % 16 != 0)
@@ -54,12 +54,12 @@ void CFG::gen_asm(std::ostream &o)
 
 		// currentST_index = 1;
 
-		// for (auto bb : bbs)
-		// {
-		// 	bb->gen_asm(o); // Ça imprime les labels et les instructions
-		// }
+		for (auto bb : bbs)
+		{
+			bb->gen_asm_arm(o); // Ça imprime les labels et les instructions
+		}
 
-		// return;
+		return;
 	}
 
 	// X86 fallback

@@ -8,7 +8,13 @@
 antlrcpp::Any IRGenerator::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) 
 {
 	visit(ctx->expr());
-	cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {});
+	int total = -cfg->functions[cfg->currentFunction].stackOffset ;
+	int stack_allocation ;
+		if (total % 16 != 0)
+			total += (16 - (total % 16));
+		stack_allocation = total;
+	
+	cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {to_string(stack_allocation)});
 	return 0;
 }
 

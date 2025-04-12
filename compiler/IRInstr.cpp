@@ -18,6 +18,19 @@ string get_register_for_param(string param){
 	else if (param == "5") return "%r9d";
 	else return param; // cas de plus de 6 paramètres , pas encore traité
 }
+void emit_arm_offset(std::ostream &o, const std::string &reg, const std::string &offset_str, const std::string &op)
+{
+	int offset = std::stoi(offset_str);
+	if (offset <= 255 && offset >= -255)
+	{
+		o << "    " << op << " " << reg << ", [sp, #" << -offset << "]\n";
+	}
+	else
+	{
+		o << "    sub x3, sp, #" << -offset << "\n";
+		o << "    " << op << " " << reg << ", [x3]\n";
+	}
+}
 
 void IRInstr::gen_asm(ostream &o)
 {
@@ -226,42 +239,42 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case ldvar:
-		o << "    ldr w0, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "ldr");
 		break;
 
 	case copy:
-		o << "    str w0, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case add:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    add w0, w1, w2\n";
 		break;
 
 	case sub:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sub w0, w1, w2\n";
 		break;
 
 	case mul:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    mul w0, w1, w2\n";
 		break;
 
 	case div:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sdiv w0, w1, w2\n";
 		break;
 
 	case mod:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    sdiv w3, w1, w2\n";
-		o << "    msub w0, w3, w2, w1\n"; // mod = a - (a / b) * b
+		o << "    msub w0, w3, w2, w1\n";
 		break;
 
 	case neg:
@@ -274,7 +287,7 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case cmp_expr:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
 		o << "    cmp w0, w1\n";
 		if (params[1] == "sete")
 			o << "    cset w0, eq\n";
@@ -291,49 +304,49 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 		break;
 
 	case cmp_lt:
-		o << "    ldr w1, " << IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, lt\n";
-		o << "    str w0, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case cmp_le:
-		o << "    ldr w1, " << IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, le\n";
-		o << "    str w0, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case cmp_ge:
-		o << "    ldr w1, " << IR_reg_to_asm(params[1]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[2]) << "\n";
+		emit_arm_offset(o, "w1", params[1], "ldr");
+		emit_arm_offset(o, "w2", params[2], "ldr");
 		o << "    cmp w1, w2\n";
 		o << "    cset w0, ge\n";
-		o << "    str w0, " << IR_reg_to_asm(params[0]) << "\n";
+		emit_arm_offset(o, "w0", params[0], "str");
 		break;
 
 	case bitwise_and:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    and w0, w1, w2\n";
 		break;
 
 	case bitwise_or:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    orr w0, w1, w2\n";
 		break;
 
 	case bitwise_xor:
-		o << "    ldr w1, " << IR_reg_to_asm(params[0]) << "\n";
-		o << "    ldr w2, " << IR_reg_to_asm(params[1]) << "\n";
+		emit_arm_offset(o, "w1", params[0], "ldr");
+		emit_arm_offset(o, "w2", params[1], "ldr");
 		o << "    eor w0, w1, w2\n";
 		break;
 
 	case ret:
-		o << "    add sp, sp, #" << params[0] << "\n"; // params[0] = stack allocation
+		o << "    add sp, sp, #" << params[0] << "\n";
 		o << "    ret\n";
 		break;
 
@@ -346,5 +359,22 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 	case jump:
 		o << "    b " << params[0] << "\n";
 		break;
+
+	case call:
+	{
+		const std::string &funcName = params[0];
+
+		if (funcName == "putchar")
+		{
+			emit_arm_offset(o, "w0", params[1], "ldr");
+			o << "    bl putchar\n";
+		}
+		else if (funcName == "getchar")
+		{
+			o << "    bl getchar\n";
+			emit_arm_offset(o, "w0", params[1], "str");
+		}
+		break;
+	}
 	}
 }
