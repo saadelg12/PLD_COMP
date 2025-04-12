@@ -21,7 +21,7 @@ else
 endif
 
 # Options de compilation
-CCFLAGS = -g -c -std=c++11 -I$(ANTLRINC) -Wno-attributes
+CCFLAGS = -g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes
 LDFLAGS = -g
 
 default: all
