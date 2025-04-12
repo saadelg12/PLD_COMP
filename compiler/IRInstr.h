@@ -14,6 +14,7 @@ public:
 	enum Operation
 	{
 		ldconst,
+		ldvar,
 		copy,
 		add,
 		sub,
@@ -29,8 +30,12 @@ public:
 		bitwise_and,
 		bitwise_or,
 		bitwise_xor,
+		prologue,
 		ret,
 		cond_jump,
+		assign_param,
+		load_param_from_reg,
+		call,
 		jump
 	};
 
@@ -40,6 +45,7 @@ public:
 	Operation getOperation() const { return op; }
 
 	void gen_asm(ostream &o);
+	void gen_asm_arm(std::ostream &o);
 
 private:
 	BasicBlock *bb;

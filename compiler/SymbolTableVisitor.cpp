@@ -8,9 +8,9 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
         std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée dans ce scope !" << std::endl;
         exit(1);
     }
-
+    
     // Insérer la variable avec l'offset actuel
-    int& offset = stackOffsets[currentFunction];
+    int& offset = functions[currentFunction].stackOffset;
     currentScope->insert(varName, offset, INT);
     offset -= 4;
 
@@ -19,17 +19,27 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
 
     return 0;
 }
+antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
+    std::string varName = ctx->VAR()->getText();
+    Symbol var = currentScope->get(varName);
+    if (var.symbolOffset==-1) {
+        std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
+        exit(1);
+    }
+    this->visit(ctx->expr()); 
+    return 0;
+}
 
 
 antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
     std::string varName = ctx->VAR()->getText();
 
-    if (currentScope->get(varName).symbolOffset==-1) {
+    Symbol var = currentScope->get(varName);
+    if (var.symbolOffset==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
         exit(1);
     }
-
-    usedVariables.insert(varName);
+    functions[currentFunction].usedVariables.insert(var.symbolOffset);
     return 0;
 }
 
@@ -47,67 +57,85 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     SymbolTable * newSymbolTable = new SymbolTable();
     newSymbolTable->parent = this->currentScope;
     this->currentScope = newSymbolTable;
-    functionSymbolTables[currentFunction].push_back(currentScope);
+    functions[currentFunction].symbolTable.push_back(currentScope);
     for (auto stmt : ctx->stmt()) {  // iterate over each statement in the list
         this->visit(stmt);  // visit each statement (declaration, assignment, return)
     }
-    // checkUnusedVariables();
-    currentScope = currentScope->parent;    
+    checkUnusedVariables();
+    currentScope = currentScope->parent; // Restore the previous scope 
     
     return 0;
 }
 
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
+    Type functionReturnType = get_type(ctx->TYPE()->getText());
     std::string functionName = ctx->VAR()->getText();
     currentFunction = functionName;
-    functionsMap[currentFunction] = ctx->TYPE()->getText();  // Type de la fonction
-
-    SymbolTable * st;
-    currentScope = new SymbolTable();  // Racine
-    
-    stackOffsets[currentFunction] = -4;
-
-    int i = 0; // Start index at 0
+    functions[currentFunction].returnType = functionReturnType;
+    //SymbolTable* st1 = new SymbolTable();
+    functions[currentFunction].stackOffset = -4;
+    SymbolTable* st = new SymbolTable();
     if (ctx->parameter_list()) { // Check if parameter_list exists
+        //std::cout<<"Function has parameters"<<std::endl;
+        
         for (auto param : ctx->parameter_list()->parameter()) {
+            Symbol s;
             std::string argName = param->VAR()->getText(); // Get the variable name
-            if (currentScope->contains(argName)) {
-                std::cerr << "Erreur : Variable '" << argName << "' déjà déclarée dans ce scope !" << std::endl;
-                exit(1);
-            }
-            currentScope->insert(argName, stackOffsets[currentFunction], INT);
-            stackOffsets[currentFunction] -= 4;
-            i++;
+            std::string argType = param->TYPE()->getText(); // Get the variable name
+            // if (currentScope->contains(argName)) {
+            //     std::cerr << "Erreur : Variable '" << argName << "' déjà déclarée dans ce scope !" << std::endl;
+            //     exit(1);
+            // }
+        
+            
+            st->insert(argName, functions[currentFunction].stackOffset,get_type(argType));
+            functions[currentFunction].stackOffset -= 4 ; // gotta change this according to the TYPE
         }
+        functions[currentFunction].symbolTable.push_back(st);
+        st->parent = nullptr;
+        //st1->parent = st;
+    }else{
+        st = nullptr;
+        functions[currentFunction].symbolTable.push_back(st);
     }
-    functionSymbolTables[currentFunction].push_back(currentScope);
-    
-    hasReturn = false;
+    currentScope = st;
+    //functions[currentFunction].symbolTable.push_back(st1);
+    //currentScope = st1;
     visit(ctx->block());
-
-    // Optionnel : vérifications
-    //checkUnusedVariables(functionName);
     checkHasReturn();
     hasReturn = false;
-
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
-    if (functionsMap.find(functionName) == functionsMap.end()) {
-        std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
+    if (functionName !="getchar" && functionName !="putchar" ){
+        if (functions.find(functionName) == functions.end()) {
+            std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
+            exit(1);
+        }
+    
+    int i =0;
+    while (ctx->expr(i)) { 
+        visit(ctx->expr(i));
+        i++;
+    }
+    if(functions[functionName].symbolTable.size() != i){
+        std::cerr << "Erreur : Fonction '" << functionName << "' prend "<< functions[functionName].symbolTable.size()<< " paramètres et non pas "<<i<< std::endl;
         exit(1);
     }
+    }
+    
     return 0;
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionDec(ifccParser::FunctionDecContext *ctx) {
     std::string functionName = ctx->VAR()->getText();
-    if (functionsMap.find(functionName) == functionsMap.end()) {
+    if (functions.find(functionName) == functions.end()) {
         // On ajoute la fonction à la map des fonctions déclarées
-        functionsMap[functionName] = ctx->TYPE()->getText();  // Type de la fonction
+        Type functionReturnType = get_type(ctx->TYPE()->getText());
+        functions[functionName].returnType = functionReturnType;
     } else {
         std::cerr << "Erreur : Fonction '" << functionName << "' déjà déclarée !" << std::endl;
         exit(1);
@@ -117,20 +145,24 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDec(ifccParser::FunctionDecContex
 
 void SymbolTableVisitor::checkUnusedVariables() {
     
-    // // Accéder à la table des symboles dans la portée actuelle
-    // const auto& symbolTable = currentScope->table;
-    // for (const auto& entry : symbolTable) {
-    //     const auto& varName = entry.first;
-    //     if (usedVariables.find(varName) == usedVariables.end()) {
-    //         std::cerr << "# Avertissement : Variable '" << varName << "' déclarée mais jamais utilisée !" << std::endl;
-    //     }
-    // }
+    // Accéder à la table des symboles dans la portée actuelle
+    if(currentScope==nullptr) return;
+    const auto& symbolTable = currentScope->table;
+    for (const auto& entry : symbolTable) {
+        const auto& var = entry.second;
+        int found = 0;
+        if (functions[currentFunction].usedVariables.find(var.symbolOffset) == functions[currentFunction].usedVariables.end()) {
+            std::cout << "# Avertissement : Variable '" << var.symbolName << "' déclarée mais jamais utilisée !" << std::endl;
+            
+        }
+        
+    }
 }
 
 
 void SymbolTableVisitor::checkHasReturn() {
-    if (not hasReturn) {
+    if (hasReturn==false) {
         std::cerr << "# Avertissement : Fonction sans `return` !" << std::endl;
-        exit(1);
-    }
+    }else{
+        std::cout << "# Fonction avec `return` !" << std::endl;}
 }

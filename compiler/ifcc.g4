@@ -20,9 +20,11 @@ stmt : declaration ';'
      | assignment ';'
      | return_stmt 
      | functionCall ';'  
-     | if_stmt;
+     | if_stmt
+     | block 
+     | while_stmt;
 
-declaration : 'int' VAR ('=' expr)? ;
+declaration : TYPE VAR ('=' expr)? ;
 
 assignment: VAR '=' expr ;
 
@@ -32,7 +34,8 @@ RETURN : 'return' ;
 
 functionCall : VAR '(' (expr (',' expr)*)? ')' ;
 
-if_stmt : IF '(' expr ')' block (ELSE block)? ;
+if_stmt : IF '(' expr ')' block(ELSE block)? ;
+while_stmt : WHILE '(' expr ')' block;
 
 expr
     : assignment                       # AssignementExpr 
@@ -51,12 +54,14 @@ expr
     | CHAR                              # CharConstExpr
     ;
 
+IF : 'if';
+ELSE: 'else';
+WHILE : 'while';
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST : [0-9]+ ;
 CHAR : '\'' . '\'' ;
 
-IF : 'if';
-ELSE: 'else';
+
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
