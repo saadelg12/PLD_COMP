@@ -121,10 +121,11 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallCont
         visit(ctx->expr(i));
         i++;
     }
-    if(functions[functionName].symbolTable.size() != i){
+    if(functions[functionName].symbolTable.at(0) != nullptr && functions[functionName].symbolTable.at(0)->table.size() != i){
         std::cerr << "Erreur : Fonction '" << functionName << "' prend "<< functions[functionName].symbolTable.size()<< " paramètres et non pas "<<i<< std::endl;
         exit(1);
     }
+    
     }
     
     return 0;
