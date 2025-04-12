@@ -1,6 +1,6 @@
 #include <stdio.h>
  
- void printTree(int height) {
+ int printTree(int height) {
      int i = 0;
      while (i < height) {
  
@@ -26,12 +26,12 @@
              j=j + 1;
          }
  
-         putchar('\n');
          i = i + 1;
      }
+     return 0;
  }
  
- void printTrunk(int height) {
+ int printTrunk(int height) {
      int i = 0;
      while (i < 2) {
          int spaces = height - 2;
@@ -45,9 +45,9 @@
          putchar('|');
          putchar('|');
          putchar('|');
-         putchar('\n');
          i = i + 1;
      }
+     return 0;
  }
  
  int main() {
@@ -109,7 +109,6 @@
      putchar('v');
      putchar('e');
      putchar(':');
-     putchar('\n');
  
  
      height = getchar() - '0';
@@ -142,7 +141,6 @@
          putchar('l');
          putchar('i');
          putchar('d');
-         putchar('\n');
      }
  
      return 0;
