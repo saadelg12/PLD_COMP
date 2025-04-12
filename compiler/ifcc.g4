@@ -2,7 +2,9 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : (functionDef|functionDec)+;
+prog : (functionDef|functionDec)* mainFunction (functionDef|functionDec)* ;
+
+mainFunction : TYPE 'main' '(' ')' block ;
 
 functionDef: TYPE VAR '(' (parameter_list)? ')' block;
 
@@ -52,6 +54,7 @@ expr
     | VAR                               # VarExpr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
+
     ;
 
 IF : 'if';

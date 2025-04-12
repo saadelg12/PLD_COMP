@@ -104,6 +104,35 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContex
     //currentScope = st1;
     visit(ctx->block());
     checkHasReturn();
+    if (hasReturn == false) {
+        std::cerr << "Erreur : Fonction '" << functionName << "' sans `return` !" << std::endl;
+        exit(1);
+    }
+    hasReturn = false;
+    return 0;
+}
+
+antlrcpp::Any SymbolTableVisitor::visitMainFunction(ifccParser::MainFunctionContext *ctx) {
+    Type functionReturnType = get_type(ctx->TYPE()->getText());
+    std::string functionName = "main";
+    currentFunction = functionName;
+    functions[currentFunction].returnType = functionReturnType;
+    //SymbolTable* st1 = new SymbolTable();
+    functions[currentFunction].stackOffset = -4;
+    SymbolTable* st = new SymbolTable();
+    
+    st = nullptr;
+    functions[currentFunction].symbolTable.push_back(st);
+    
+    currentScope = st;
+    //functions[currentFunction].symbolTable.push_back(st1);
+    //currentScope = st1;
+    visit(ctx->block());
+    checkHasReturn();
+    if (hasReturn == false) {
+        std::cerr << "Erreur : Main '" << functionName << "' sans `return` !" << std::endl;
+        exit(1);
+    }
     hasReturn = false;
     return 0;
 }
@@ -116,15 +145,20 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallCont
             exit(1);
         }
     
-    int i =0;
-    while (ctx->expr(i)) { 
-        visit(ctx->expr(i));
-        i++;
-    }
-    if(functions[functionName].symbolTable.at(0) != nullptr && functions[functionName].symbolTable.at(0)->table.size() != i){
-        std::cerr << "Erreur : Fonction '" << functionName << "' prend "<< functions[functionName].symbolTable.size()<< " paramètres et non pas "<<i<< std::endl;
-        exit(1);
-    }
+        int i =0;
+        while (ctx->expr(i)) { 
+            visit(ctx->expr(i));
+            i++;
+        }
+        if(functions[functionName].symbolTable.at(0) != nullptr && functions[functionName].symbolTable.at(0)->table.size() != i){
+            std::cerr << "Erreur : Fonction '" << functionName << "' prend "<< functions[functionName].symbolTable.size()<< " paramètres et non pas "<<i<< std::endl;
+            exit(1);
+        }
+        //verifier si la fonction ne prend pas de parametres mais on en a mis
+        if (functions[functionName].symbolTable.at(0) == nullptr && i != 0){
+            std::cerr << "Erreur : Fonction '" << functionName << "' ne prend pas de paramètres. Vous avez passé " << i << " paramètres." << std::endl;
+            exit(1);
+        }
     
     }
     

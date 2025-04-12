@@ -465,3 +465,54 @@ antlrcpp::Any IRGenerator::visitFunctionDef(ifccParser::FunctionDefContext *ctx)
 
 	return 0;
 }
+
+
+
+antlrcpp::Any IRGenerator::visitMainFunction(ifccParser::MainFunctionContext *ctx)
+{
+	std::string funcName = "main";
+
+	BasicBlock *function_bb = new BasicBlock(cfg, funcName);
+	cfg->currentFunction = funcName;
+	cfg->add_bb(function_bb);
+	cfg->current_bb = function_bb;
+
+	SymbolTable *symbolTable = cfg->functions[funcName].symbolTable.at(0);
+
+	// if (symbolTable != nullptr)
+	// {
+	// 	auto it = symbolTable->table.begin();
+	// 	int i = 0;
+	// 	for (; it != symbolTable->table.end(); ++it, ++i)
+	// 	{
+	// 		cfg->current_bb->add_IRInstr(IRInstr::load_param_from_reg, INT, {to_string(it->second.symbolOffset), to_string(i)});
+	// 	}
+	// }
+
+	cfg->currentST_index = 0;
+	cfg->last_ST_index = 0;
+
+	int total = -cfg->functions[funcName].stackOffset;
+
+	// Prévoir une grosse marge pour les temporaires (genre 20 slots de 4 bytes = 80 bytes)
+	int nb_max_temp = 20;
+	total += nb_max_temp * 4;
+
+	// Minimum obligatoire
+	if (total < 32)
+		total = 32;
+
+	// Alignement sur 16 bytes (obligatoire ARM)
+	if (total % 16 != 0)
+		total += (16 - (total % 16));
+
+	cfg->stack_allocation = total;
+
+	// visit du code de la fonction
+	visit(ctx->block());
+
+	// Ajout du prologue en tête
+	function_bb->add_IRInstrAtTop(IRInstr::prologue, INT, {to_string(cfg->stack_allocation)});
+
+	return 0;
+}

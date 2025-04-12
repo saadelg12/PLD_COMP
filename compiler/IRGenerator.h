@@ -48,6 +48,7 @@ public:
     antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx);
     antlrcpp::Any visitFunctionCall(ifccParser::FunctionCallContext* ctx) override;
     antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext* ctx) override;
+    antlrcpp::Any visitMainFunction(ifccParser::MainFunctionContext* ctx) override;
 
 
 private:
