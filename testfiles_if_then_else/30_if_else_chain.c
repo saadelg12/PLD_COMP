@@ -2,7 +2,6 @@ int main() {
     int a = 15;
     int result;
     
-    // Testing if-else chain structure
     if(a < 10) {
         result = 1;
     } else {
@@ -16,6 +15,5 @@ int main() {
             }
         }
     }
-    
     return result;
 }

@@ -3,12 +3,12 @@ int main() {
     int b = 10;
     int result = a + b;
     {
-        int c = result * 2;  // c = 30
+        int c = result * 2;  
         {
-            int d = c - a;   // d = 25
-            result = d / b;  // result = 2
+            int d = c - a;   
+            result = d / b;  
         }
-        result = result + c; // result = 32
+        result = result + c; 
     }
     return result;
 }

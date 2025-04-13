@@ -7,21 +7,19 @@ int main() {
         
         if (y > 10) {
             int z = 30;
-            result = x + y + z; // 10 + 20 + 30 = 60
+            result = x + y + z;
         } else {
             int z = 40;
-            result = x + y - z; // Not executed
+            result = x + y - z;
         }
         
-        // z is out of scope here
-        result = result - y; // 60 - 20 = 40
+        result = result - y;
     } else {
         int y = 50;
-        result = x * y; // Not executed
+        result = x * y;
     }
     
-    // y is out of scope here
-    result = result + x; // 40 + 10 = 50
+    result = result + x;
     
-    return result; // Should return 50
+    return result;
 }

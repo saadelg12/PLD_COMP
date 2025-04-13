@@ -4,7 +4,6 @@ int main() {
     int c = 15;
     int result = 0;
     
-    // Testing complex expressions with mixed operators
     if((a + b > c) & (b - a < c) | (c / a == 3)) {
         if(!(a >= b) & (c % a == 0)) {
             result = 42;

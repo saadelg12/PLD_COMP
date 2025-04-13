@@ -21,5 +21,4 @@ int main() {
     
     int result = calculate(x, y);
     
-    return result; // Should return (5+3)*2 = 16
-}
+    return result; 

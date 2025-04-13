@@ -1,9 +1,9 @@
 int main() {
-    int a = 5;    // 0101 in binary
-    int b = 3;    // 0011 in binary
+    int a = 5;    
+    int b = 3;    
     int result;
     
-    if(a & b) {  // bitwise AND: 0101 & 0011 = 0001 (1 in decimal, which is true)
+    if(a & b) {  
         result = 100;
     } else {
         result = 200;

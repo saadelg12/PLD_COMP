@@ -2,7 +2,6 @@ int main() {
     int a = 10;
     int result = 0;
     
-    // Test consecutive if statements with different conditions
     if(a > 5) {
         result = result+ 1;
     }
@@ -19,5 +18,5 @@ int main() {
         result = result + 8;
     }
     
-    return result;  // Should return 15 (1+2+4+8)
+    return result;  
 }

@@ -8,15 +8,15 @@ int main() {
             result = x;
             break;
         case 2:
-            int x = 20; // Different scope than the x in case 1
+            int x = 20;
             {
                 int y = 5;
-                result = x + y; // 20 + 5 = 25
+                result = x + y; 
             }
-            result = result * 2; // 25 * 2 = 50
+            result = result * 2; 
             break;
         case 3:
-            int y = 30; // Different scope than the y in case 2
+            int y = 30; 
             result = y;
             break;
         default:
@@ -24,5 +24,5 @@ int main() {
             result = z;
     }
     
-    return result; // Should return 50
+    return result; 
 }

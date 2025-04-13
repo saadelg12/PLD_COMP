@@ -8,15 +8,14 @@ int modifyGlobal() {
 
 int main() {
     int result = 0;
-    int globalVar = 20; // Shadows the global variable
+    int globalVar = 20; 
     
-    result = globalVar; // Uses the local variable (20)
+    result = globalVar; 
     
     {
-        result = result + modifyGlobal(); // Global var becomes 10+5=15
+        result = result + modifyGlobal(); 
     }
     
-    result = result + globalVar; // Uses the local variable again (20)
+    result = result + globalVar; 
     
-    return result; // Should return 20 + 15 + 20 = 55
-}
+    return result;

@@ -16,5 +16,4 @@ int main() {
         result = b;
     }
     
-    return result; // Should return 30 (10 + 20)
-}
+    return result; 

@@ -6,7 +6,6 @@ int main() {
     int e = 25;
     int result = 0;
     
-    // Testing extremely deep nesting that might challenge the compiler
     if(a < b) {
         if(b < c) {
             if(c < d) {

@@ -4,13 +4,13 @@ int calculate(int x) {
 
 int main() {
     int result = 0;
-    int calculate = 5; // Variable with same name as function
+    int calculate = 5; 
     
-    result = calculate; // Uses the variable, not the function
+    result = calculate; 
     
     {
-        result = result + calculate(3); // Uses the function, not the variable
+        result = result + calculate(3);
     }
     
-    return result; // Should return 5 + 6 = 11
+    return result; 
 }

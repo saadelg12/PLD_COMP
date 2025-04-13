@@ -3,7 +3,6 @@ int main() {
     int b = 3;
     int result;
     
-    // Test condition with modulo operation
     if(a % b == 1) {
         result = 100;
     } else {

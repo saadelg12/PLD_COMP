@@ -3,11 +3,10 @@ int main() {
     char b = 'B';
     int result;
     
-    // Test condition with character comparison
     if(a < b) {
-        result = 65;  // ASCII of 'A'
+        result = 65;  
     } else {
-        result = 66;  // ASCII of 'B'
+        result = 66;  
     }
     
     return result;
