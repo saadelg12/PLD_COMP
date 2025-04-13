@@ -211,9 +211,9 @@ void IRInstr::gen_asm(ostream &o)
 			o << "    call putchar\n";
 		}
 		else if (funcName == "getchar") {
-			std::string arg = params[1];
+			//std::string arg = params[1];
 			o << "    call getchar\n";
-			o << "    movl %eax, " << arg << "(%rbp)\n";
+			//o << "    movl %eax, " << arg << "(%rbp)\n";
 		}
 		else{
 			o << "    call " << funcName << "\n";

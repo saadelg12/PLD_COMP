@@ -377,10 +377,11 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 	if (funcName == "getchar")
 	{
 		int offset = cfg->functions[cfg->currentFunction].stackOffset;
-		string resOffset = to_string(offset);
-		cfg->functions[cfg->currentFunction].stackOffset -= 4;
+		//string resOffset = to_string(offset);
+		//cfg->functions[cfg->currentFunction].stackOffset -= 4;
 
-		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, resOffset});
+		//cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, resOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName});
 		return 0;
 	}
 	else if (funcName == "putchar")
