@@ -1,4 +1,4 @@
-// Forward declaration
+
 int calculate(int x, int y);
 
 int multiply(int a, int b) {
