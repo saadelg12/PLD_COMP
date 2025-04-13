@@ -22,6 +22,10 @@ void BasicBlock::add_IRInstrAtTop(IRInstr::Operation op, Type t, vector<string> 
 }
 void BasicBlock::gen_asm(ostream &o)
 {
+	#ifdef __APPLE__
+    	o << "_" << this->label << ":\n";
+	#endif
+
 	o << this->label << ":\n";
 	for (auto instr : instrs)
 	{
