@@ -1,6 +1,4 @@
-#include <stdio.h>
- 
- int printTree(int height) {
+int printTree(int height) {
      int i = 0;
      while (i < height) {
  
