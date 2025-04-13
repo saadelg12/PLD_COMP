@@ -11,11 +11,12 @@ int knapsack(int w1, int v1, int w2, int v2, int W) {
         }
     }
 
-    if (w1 + w2 <= W) {
-        if (v1 + v2 > res) {
+    int y = w1 + w2;
+    int x = v1 + v2;
+    if (y <= W) {
+        if (x > res) {
             res = v1 + v2;
         }
-        res = v1 + v2;
     }
 
     return res;
