@@ -78,6 +78,7 @@ public:
 	BasicBlock * current_bb;
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
+	int nb_getchar = 0;
 	
 private:
 	void *ast;	
