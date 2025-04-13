@@ -1,5 +1,3 @@
-
-#pragma once
 #include "IRGenerator.h"
 
 antlrcpp::Any IRGenerator::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
@@ -379,9 +377,10 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 		int offset = cfg->functions[cfg->currentFunction].stackOffset;
 		//string resOffset = to_string(offset);
 		//cfg->functions[cfg->currentFunction].stackOffset -= 4;
+		std::string getchar_label = "read_car_" + to_string(cfg->nb_getchar++);
 
 		//cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, resOffset});
-		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName});
+		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName, getchar_label});
 		return 0;
 	}
 	else if (funcName == "putchar")
