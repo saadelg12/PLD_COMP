@@ -31,7 +31,7 @@ public:
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
     antlrcpp::Any visitDeclaration(ifccParser::DeclarationContext* ctx) override;
     antlrcpp::Any visitAssignment(ifccParser::AssignmentContext* ctx) override;
-    antlrcpp::Any visitVarExpr(ifccParser::VarExprContext* ctx) override;
+    antlrcpp::Any visitIdExpr(ifccParser::IdExprContext* ctx) override;
     antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext* ctx) override;
     antlrcpp::Any visitAddSub(ifccParser::AddSubContext* ctx) override;
     antlrcpp::Any visitMulDiv(ifccParser::MulDivContext* ctx) override;

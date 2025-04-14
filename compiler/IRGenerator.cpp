@@ -18,7 +18,7 @@ antlrcpp::Any IRGenerator::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 antlrcpp::Any IRGenerator::visitDeclaration(ifccParser::DeclarationContext *ctx)
 {
 
-	std::string varName = ctx->VAR()->getText();
+	std::string varName = ctx->ID()->getText();
 	string offset = to_string(cfg->get_var_index(varName));
 	// cout<<"# Declaration : "<< endl;
 	Type type = cfg->get_var_type(varName);
@@ -45,7 +45,7 @@ antlrcpp::Any IRGenerator::visitDeclaration(ifccParser::DeclarationContext *ctx)
 
 antlrcpp::Any IRGenerator::visitAssignment(ifccParser::AssignmentContext *ctx)
 {
-	std::string varName = ctx->VAR()->getText();
+	std::string varName = ctx->ID()->getText();
 	string offset = to_string(cfg->get_var_index(varName));
 	Type type = cfg->get_var_type(varName);
 
@@ -62,9 +62,9 @@ antlrcpp::Any IRGenerator::visitAssignment(ifccParser::AssignmentContext *ctx)
 	return value;
 }
 
-antlrcpp::Any IRGenerator::visitVarExpr(ifccParser::VarExprContext *ctx)
+antlrcpp::Any IRGenerator::visitIdExpr(ifccParser::IdExprContext *ctx)
 {
-	std::string varName = ctx->VAR()->getText();
+	std::string varName = ctx->ID()->getText();
 	string offset = to_string(cfg->get_var_index(varName));
 	lastExprType = cfg->get_var_type(varName);
 	cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {offset});
@@ -449,7 +449,7 @@ antlrcpp::Any IRGenerator::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 
 antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ctx)
 {
-	// std::string funcName = ctx->VAR()->getText();
+	// std::string funcName = ctx->ID()->getText();
 
 	// if (funcName == "putchar")
 	// {
@@ -464,7 +464,7 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 	// 	return dst; // on retourne le nom de la variable temporaire où est stocké le résultat
 	// }
 
-	std::string funcName = ctx->VAR()->getText();
+	std::string funcName = ctx->ID()->getText();
 
 	// Si getchar : pas d'argument à passer
 	if (funcName == "getchar")
@@ -516,7 +516,7 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 
 antlrcpp::Any IRGenerator::visitFunctionDef(ifccParser::FunctionDefContext *ctx)
 {
-	std::string funcName = ctx->VAR()->getText();
+	std::string funcName = ctx->ID()->getText();
 
 	BasicBlock *function_bb = new BasicBlock(cfg, funcName);
 	cfg->currentFunction = funcName;

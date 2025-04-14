@@ -25,7 +25,7 @@ Ce tableau résume le support des fonctionnalités du projet IFCC à date, répa
 | **Support des portées et shadowing** | ❌ Non implémenté | Table des symboles globale |
 | **Structures `if`, `else`, `while`** | ❌ Non implémenté | Pas encore dans la grammaire |
 | **`return` n'importe où** | ✅ Implémenté | Vérifié avec `checkHasReturn()` |
-| **Vérification : variable utilisée déclarée** | ✅ Implémenté | `visitVarExpr()` avec erreur si inconnue |
+| **Vérification : variable utilisée déclarée** | ✅ Implémenté | `visitIdExpr()` avec erreur si inconnue |
 | **Vérification : double déclaration** | ✅ Implémenté | Détection dans `visitDeclaration()` |
 | **Vérification : variable déclarée non utilisée** | ✅ Implémenté | Message d’avertissement via `checkUnusedVariables()` |
 

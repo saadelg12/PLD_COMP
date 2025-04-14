@@ -6,13 +6,13 @@ prog : (functionDef|functionDec)* mainFunction (functionDef|functionDec)* ;
 
 mainFunction : TYPE 'main' '(' ')' block ;
 
-functionDef: TYPE VAR '(' (parameter_list)? ')' block;
+functionDef: TYPE ID '(' (parameter_list)? ')' block;
 
-functionDec: TYPE VAR'(' (parameter_list)? ')' ';';
+functionDec: TYPE ID'(' (parameter_list)? ')' ';';
 
 parameter_list: parameter (',' parameter)*;
 
-parameter: TYPE VAR;
+parameter: TYPE ID;
 
 TYPE : 'int' | 'double' | 'void';
 
@@ -26,15 +26,15 @@ stmt : declaration ';'
      | block 
      | while_stmt;
 
-declaration : TYPE VAR ('=' expr)? ;
+declaration : TYPE ID ('=' expr)? ;
 
-assignment: VAR '=' expr ;
+assignment: ID '=' expr ;
 
 return_stmt : RETURN expr ';' ;
 
 RETURN : 'return' ;
 
-functionCall : VAR '(' (expr (',' expr)*)? ')' ;
+functionCall : ID '(' (expr (',' expr)*)? ')' ;
 
 if_stmt : IF '(' expr ')' block(ELSE block)? ;
 while_stmt : WHILE '(' expr ')' block;
@@ -51,7 +51,7 @@ expr
     | expr ('|') expr                # BitwiseOrExpr
     | '(' expr ')'                       # ParExpr
     | functionCall                      # FunctionCallExpr
-    | VAR                               # VarExpr
+    | ID                               # IdExpr
     | CONST                             # ConstExpr
     | CHAR                              # CharConstExpr
 
@@ -60,7 +60,7 @@ expr
 IF : 'if';
 ELSE: 'else';
 WHILE : 'while';
-VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
+ID : [a-zA-Z_][a-zA-Z_0-9]* ;
 CONST
     : [0-9]+ ('.' [0-9]*)?     // 3 ou 3.14
     | '.' [0-9]+              // .42
