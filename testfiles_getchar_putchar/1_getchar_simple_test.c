@@ -2,7 +2,11 @@
 
 int main() {
 
-    getchar();
+    int a = getchar();
+
+    if (a == '1') {
+        return a;
+    }
     
     return 0;
 }
