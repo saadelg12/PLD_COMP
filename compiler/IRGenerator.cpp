@@ -3,9 +3,14 @@
 antlrcpp::Any IRGenerator::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
 	visit(ctx->expr());
-
+	Type type = cfg->functions[cfg->currentFunction].returnType;
+	if(type != lastExprType)
+    {
+        if(type == INT) cfg->current_bb->add_IRInstr(IRInstr::double_to_int, type, {to_string(cfg->stack_allocation)});
+        else cfg->current_bb->add_IRInstr(IRInstr::int_to_double, type, {to_string(cfg->stack_allocation)});
+    }
 	// Utilisation du stack_allocation déjà calculé
-	cfg->current_bb->add_IRInstr(IRInstr::ret, INT, {to_string(cfg->stack_allocation)});
+	cfg->current_bb->add_IRInstr(IRInstr::ret, lastExprType, {to_string(cfg->stack_allocation)});
 
 	return 0;
 }
@@ -19,15 +24,22 @@ antlrcpp::Any IRGenerator::visitDeclaration(ifccParser::DeclarationContext *ctx)
 	Type type = cfg->get_var_type(varName);
 	if (ctx->expr())
 	{
-
 		visit(ctx->expr());
-		cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+		if(lastExprType == type)cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+        else{
+            if (type == INT){
+                cfg->current_bb->add_IRInstr(IRInstr::double_to_int, type, {offset});
+            }
+            else if (type == DOUBLE){
+                cfg->current_bb->add_IRInstr(IRInstr::int_to_double, type, {offset});
+            }
+        }
 	}
 	// else
 	// {
 	// 	cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {"0"});
 	// }
-
+	lastExprType = type;
 	return 0;
 }
 
@@ -39,7 +51,14 @@ antlrcpp::Any IRGenerator::visitAssignment(ifccParser::AssignmentContext *ctx)
 
 	antlrcpp::Any value = visit(ctx->expr());
 
+	if(type != lastExprType)
+    {
+        if(type == INT) cfg->current_bb->add_IRInstr(IRInstr::double_to_int, type, {offset});
+        else cfg->current_bb->add_IRInstr(IRInstr::int_to_double, type, {offset});
+    }
+
 	cfg->current_bb->add_IRInstr(IRInstr::copy, type, {offset});
+	lastExprType = type;
 	return value;
 }
 
@@ -47,62 +66,125 @@ antlrcpp::Any IRGenerator::visitVarExpr(ifccParser::VarExprContext *ctx)
 {
 	std::string varName = ctx->VAR()->getText();
 	string offset = to_string(cfg->get_var_index(varName));
-	Type type = cfg->get_var_type(varName);
-	cfg->current_bb->add_IRInstr(IRInstr::ldvar, type, {offset});
+	lastExprType = cfg->get_var_type(varName);
+	cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {offset});
 	return 0;
 }
 
 antlrcpp::Any IRGenerator::visitConstExpr(ifccParser::ConstExprContext *ctx)
 {
-	std::string value = ctx->CONST()->getText();
-	cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {value});
-	return 0;
+	std::string text = ctx->CONST()->getText();
+    lastExprType = (text.find('.') != std::string::npos) ? DOUBLE : INT;
+
+    std::string value;
+
+    if (text.find('.') != std::string::npos) {
+
+        // Génère une étiquette unique pour la constante si elle n’existe pas encore
+        std::string label;
+        if (cfg->double_constants.count(text) == 0) {
+            label = "LC" + std::to_string(cfg->double_constant_counter++);
+            cfg->double_constants[text] = label;
+        } else {
+            label = cfg->double_constants[text];
+        }
+
+        value = label;  // accès mémoire relatif à RIP
+    } else {
+        lastExprType = INT;
+        value = text;
+    }
+
+    cfg->current_bb->add_IRInstr(IRInstr::ldconst, lastExprType, {value});
+    return 0;
 }
 
 antlrcpp::Any IRGenerator::visitAddSub(ifccParser::AddSubContext *ctx)
 {
 
 	visit(ctx->expr(0));
+	Type leftType = lastExprType;
 	int nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(leftType);
 	string leftOffset = to_string(nextFreeSymbolIndex);
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+	cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
 	visit(ctx->expr(1));
+	Type rightType = lastExprType;
 	nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(rightType);
 	string rightOffset = to_string(nextFreeSymbolIndex);
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+	cfg->current_bb->add_IRInstr(IRInstr::copy, rightType, {rightOffset});
+
+	if (leftType == DOUBLE || rightType == DOUBLE) {
+        lastExprType = DOUBLE;
+        
+        if (leftType == INT) {
+            
+            leftOffset = to_string(cfg->functions[cfg->currentFunction].stackOffset);
+            cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(lastExprType);
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
+        }
+        if (rightType == INT) {
+            
+            rightOffset = to_string(cfg->functions[cfg->currentFunction].stackOffset);
+            cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(lastExprType);;
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
+        }
+    } else {
+        lastExprType = INT;
+    }
 
 	std::string op = ctx->OP->getText();
 	if (op == "+")
-		cfg->current_bb->add_IRInstr(IRInstr::add, INT, {leftOffset, rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::add, lastExprType, {leftOffset, rightOffset});
 	else
-		cfg->current_bb->add_IRInstr(IRInstr::sub, INT, {leftOffset, rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::sub, lastExprType, {leftOffset, rightOffset});
 
 	return 0;
 }
 
 antlrcpp::Any IRGenerator::visitMulDiv(ifccParser::MulDivContext *ctx)
 {
-	// cout<<"visitMulDiv\n";
 	visit(ctx->expr(0));
+	Type leftType = lastExprType;
 	int nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(leftType);
 	string leftOffset = to_string(nextFreeSymbolIndex);
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+	cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
 	visit(ctx->expr(1));
+	Type rightType = lastExprType;
 	nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(rightType);
 	string rightOffset = to_string(nextFreeSymbolIndex);
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
+	cfg->current_bb->add_IRInstr(IRInstr::copy, rightType, {rightOffset});
+
+	if (leftType == DOUBLE || rightType == DOUBLE) {
+        lastExprType = DOUBLE;
+        
+        if (leftType == INT) {
+            
+            leftOffset = to_string(cfg->functions[cfg->currentFunction].stackOffset);
+            cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(lastExprType);
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
+        }
+        if (rightType == INT) {
+            
+            rightOffset = to_string(cfg->functions[cfg->currentFunction].stackOffset);
+            cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(lastExprType);;
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
+        }
+    } else {
+        lastExprType = INT;
+    }
+
 	std::string op = ctx->OP->getText();
 	if (op == "*")
 	{
-		cfg->current_bb->add_IRInstr(IRInstr::mul, INT, {leftOffset, rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::mul, lastExprType, {leftOffset, rightOffset});
 	}
 	else if (op == "/")
 	{
-		cfg->current_bb->add_IRInstr(IRInstr::div, INT, {leftOffset, rightOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::div, lastExprType, {leftOffset, rightOffset});
 	}
 	else if (op == "%")
 	{
@@ -133,17 +215,29 @@ antlrcpp::Any IRGenerator::visitNotExpr(ifccParser::NotExprContext *ctx)
 antlrcpp::Any IRGenerator::visitCmpExpr(ifccParser::CmpExprContext *ctx)
 {
 	visit(ctx->expr(0));
+	Type leftType = lastExprType;
 	int nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(leftType);
 	string leftOffset = to_string(nextFreeSymbolIndex);
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {leftOffset});
+	cfg->current_bb->add_IRInstr(IRInstr::copy, leftType, {leftOffset});
 	visit(ctx->expr(1));
+	Type rightType = lastExprType;
 	nextFreeSymbolIndex = cfg->functions[cfg->currentFunction].stackOffset;
-	cfg->functions[cfg->currentFunction].stackOffset -= 4;
+	cfg->functions[cfg->currentFunction].stackOffset -= getTypeSize(rightType);
 	string rightOffset = to_string(nextFreeSymbolIndex);
+	cfg->current_bb->add_IRInstr(IRInstr::copy, rightType, {rightOffset});
 
-	cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {rightOffset});
-	cfg->current_bb->add_IRInstr(IRInstr::ldvar, INT, {leftOffset});
+	if (leftType == DOUBLE || rightType == DOUBLE) {
+        lastExprType = DOUBLE;
+        if (leftType == INT)
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {leftOffset});
+        if (rightType == INT)
+            cfg->current_bb->add_IRInstr(IRInstr::int_to_double, DOUBLE, {rightOffset});
+    } else {
+        lastExprType = INT;
+    }
+
+	cfg->current_bb->add_IRInstr(IRInstr::ldvar, lastExprType, {leftOffset});
 
 	std::string op = ctx->getText();
 	std::string setInstr;
@@ -161,8 +255,8 @@ antlrcpp::Any IRGenerator::visitCmpExpr(ifccParser::CmpExprContext *ctx)
 	else if (op.find(">") != std::string::npos)
 		setInstr = "setg";
 
-	cfg->current_bb->add_IRInstr(IRInstr::cmp_expr, INT, {rightOffset, setInstr});
-
+	cfg->current_bb->add_IRInstr(IRInstr::cmp_expr, lastExprType, {rightOffset, setInstr});
+	lastExprType = INT;
 	return 0;
 }
 
@@ -173,6 +267,7 @@ antlrcpp::Any IRGenerator::visitCharConstExpr(ifccParser::CharConstExprContext *
 	char c = text[1];						   // le caractère réel entre les apostrophes
 	string asciiValue = to_string(static_cast<int>(c));
 	cfg->current_bb->add_IRInstr(IRInstr::ldconst, INT, {asciiValue});
+	lastExprType = INT;
 	return 0;
 }
 
@@ -387,24 +482,26 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 	{
 		visit(ctx->expr(0)); // Place l'argument dans %eax
 
-		int offset = cfg->functions[cfg->currentFunction].stackOffset;
-		string resOffset = to_string(offset);
-		cfg->functions[cfg->currentFunction].stackOffset -= 4;
-		cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {resOffset}); // Sauvegarde %eax
-		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", resOffset});
+		//int offset = cfg->functions[cfg->currentFunction].stackOffset;
+		//string resOffset = to_string(offset);
+		//cfg->functions[cfg->currentFunction].stackOffset -= 4;
+		//cfg->current_bb->add_IRInstr(IRInstr::copy, INT, {resOffset}); // Sauvegarde %eax
+		//cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar", resOffset});
+		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {"putchar"});
 		return 0;
 	}
 	else
 	{
 		int i = 0;
 		auto it = cfg->functions[funcName].symbolTable[0]->table.begin();
+		Type type = cfg->functions[funcName].returnType;
 		while (ctx->expr(i))
 		{ // Check if parameter_list exists
 			// Symbol s = it->second;
 			// int offset = s.symbolOffset;
 			// Type type = s.symbolType;
 			visit(ctx->expr(i));
-			cfg->current_bb->add_IRInstr(IRInstr::assign_param, INT, {to_string(i)});
+			cfg->current_bb->add_IRInstr(IRInstr::assign_param, lastExprType, {to_string(i)});
 			// cfg->current_bb->add_IRInstr(IRInstr::copy, type, {to_string(offset)});
 			++i;
 			++it;
@@ -412,7 +509,7 @@ antlrcpp::Any IRGenerator::visitFunctionCall(ifccParser::FunctionCallContext *ct
 		// if(cfg->functions[funcName].symbolTable.size() > i){
 		// 	//Chnger Symbol Table Visitor , ça doit être détecté comme une erreur
 		// }
-		cfg->current_bb->add_IRInstr(IRInstr::call, INT, {funcName});
+		cfg->current_bb->add_IRInstr(IRInstr::call, type, {funcName});
 	}
 	return 0;
 }

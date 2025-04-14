@@ -5,6 +5,15 @@
 // ---------- ASSEMBLEUR POUR CFG ----------
 void CFG::gen_asm(std::ostream &o)
 {
+	if (!double_constants.empty()) {
+		o << "\n    .section .rodata\n";
+		for (const auto &pair : double_constants) {
+			o << pair.second << ":\n";
+			o << "    .double " << pair.first << "\n";
+		}
+		o << "    .text\n";
+	}
+	
 	if (is_arm)
 	{
 

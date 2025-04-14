@@ -2,7 +2,17 @@
 
 antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx) {
     std::string varName = ctx->VAR()->getText();
-
+    // Déterminer le type
+    std::string typeText = ctx->TYPE()->getText();
+    Type varType;
+    if (typeText == "int") {
+        varType = INT;
+    } else if (typeText == "double") {
+        varType = DOUBLE;
+    } else {
+        std::cerr << "Type inconnu : " << typeText << "\n";
+        exit(1);
+    }
     // Vérifier si la variable existe déjà dans le scope courant
     if (currentScope->contains(varName)) {
         std::cerr << "Erreur : Variable '" << varName << "' déjà déclarée dans ce scope !" << std::endl;
@@ -11,8 +21,8 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
     
     // Insérer la variable avec l'offset actuel
     int& offset = functions[currentFunction].stackOffset;
-    currentScope->insert(varName, offset, INT);
-    offset -= 4;
+    currentScope->insert(varName, offset, varType);
+    offset -= getTypeSize(varType);
 
     std::cout << "# Déclaration : " << varName << " -> "
               << currentScope->get(varName).symbolOffset << " (%rbp)" << std::endl;

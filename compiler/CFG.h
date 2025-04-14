@@ -79,6 +79,8 @@ public:
 	bool is_arm = false;	  // false = x86, true = ARM
 	int stack_allocation = 0; // Allocation pour décalage de sp
 	int nb_getchar = 0;
+	std::map<std::string, std::string> double_constants;
+	int double_constant_counter = 0;
 	
 private:
 	void *ast;	

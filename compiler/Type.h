@@ -19,5 +19,13 @@ inline Type get_type(std::string type){
 	else return VOID;
 }
 
+inline int getTypeSize(Type type) {
+    switch(type) {
+        case INT: return 4;
+        case CHAR: return 1;
+        case DOUBLE: return 8;
+        default: return 0;
+    }
+}
 #endif
 

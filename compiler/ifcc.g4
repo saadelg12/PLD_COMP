@@ -14,7 +14,7 @@ parameter_list: parameter (',' parameter)*;
 
 parameter: TYPE VAR;
 
-TYPE : 'int' | 'void';
+TYPE : 'int' | 'double' | 'void';
 
 block : '{' stmt* '}';
 
@@ -61,7 +61,10 @@ IF : 'if';
 ELSE: 'else';
 WHILE : 'while';
 VAR: [a-zA-Z_][a-zA-Z_0-9]* ;
-CONST : [0-9]+ ;
+CONST
+    : [0-9]+ ('.' [0-9]*)?     // 3 ou 3.14
+    | '.' [0-9]+              // .42
+    ;
 CHAR : '\'' . '\'' ;
 
 

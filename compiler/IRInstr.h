@@ -31,6 +31,8 @@ public:
 		bitwise_or,
 		bitwise_xor,
 		prologue,
+		int_to_double,
+		double_to_int,
 		ret,
 		cond_jump,
 		assign_param,
@@ -61,6 +63,8 @@ private:
 			return "l"; // long = 4 octets
 		case CHAR:
 			return "b"; // byte = 1 octet
+		case DOUBLE:
+			return "sd";// long = 8 octets
 		default:
 			return "l"; // fallback = int
 		}
