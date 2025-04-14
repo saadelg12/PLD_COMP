@@ -1,7 +1,7 @@
 #include "SymbolTableVisitor.h"
 
 antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
+    std::string varName = ctx->ID()->getText();
     // Déterminer le type
     std::string typeText = ctx->TYPE()->getText();
     Type varType;
@@ -30,7 +30,7 @@ antlrcpp::Any SymbolTableVisitor::visitDeclaration(ifccParser::DeclarationContex
     return 0;
 }
 antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
+    std::string varName = ctx->ID()->getText();
     Symbol var = currentScope->get(varName);
     if (var.symbolOffset==-1) {
         std::cerr << "Erreur : Variable '" << varName << "' utilisée sans être déclarée !" << std::endl;
@@ -41,8 +41,8 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
 }
 
 
-antlrcpp::Any SymbolTableVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
-    std::string varName = ctx->VAR()->getText();
+antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
+    std::string varName = ctx->ID()->getText();
 
     Symbol var = currentScope->get(varName);
     if (var.symbolOffset==-1) {
@@ -80,7 +80,7 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     Type functionReturnType = get_type(ctx->TYPE()->getText());
-    std::string functionName = ctx->VAR()->getText();
+    std::string functionName = ctx->ID()->getText();
     currentFunction = functionName;
     functions[currentFunction].returnType = functionReturnType;
     //SymbolTable* st1 = new SymbolTable();
@@ -91,7 +91,7 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionDef(ifccParser::FunctionDefContex
         
         for (auto param : ctx->parameter_list()->parameter()) {
             Symbol s;
-            std::string argName = param->VAR()->getText(); // Get the variable name
+            std::string argName = param->ID()->getText(); // Get the variable name
             std::string argType = param->TYPE()->getText(); // Get the variable name
             // if (currentScope->contains(argName)) {
             //     std::cerr << "Erreur : Variable '" << argName << "' déjà déclarée dans ce scope !" << std::endl;
@@ -148,7 +148,7 @@ antlrcpp::Any SymbolTableVisitor::visitMainFunction(ifccParser::MainFunctionCont
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallContext *ctx) {
-    std::string functionName = ctx->VAR()->getText();
+    std::string functionName = ctx->ID()->getText();
     if (functionName !="getchar" && functionName !="putchar" ){
         if (functions.find(functionName) == functions.end()) {
             std::cerr << "Erreur : Fonction '" << functionName << "' non déclarée !" << std::endl;
@@ -176,7 +176,7 @@ antlrcpp::Any SymbolTableVisitor::visitFunctionCall(ifccParser::FunctionCallCont
 }
 
 antlrcpp::Any SymbolTableVisitor::visitFunctionDec(ifccParser::FunctionDecContext *ctx) {
-    std::string functionName = ctx->VAR()->getText();
+    std::string functionName = ctx->ID()->getText();
     if (functions.find(functionName) == functions.end()) {
         // On ajoute la fonction à la map des fonctions déclarées
         Type functionReturnType = get_type(ctx->TYPE()->getText());
