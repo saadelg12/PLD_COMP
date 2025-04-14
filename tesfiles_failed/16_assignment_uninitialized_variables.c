@@ -1,5 +1,6 @@
 int main() {
     int a;
-    int b = 2147483647; 
+    int b;
+    a = b; 
     return a;
 }
