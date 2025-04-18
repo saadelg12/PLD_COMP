@@ -278,12 +278,12 @@ void IRInstr::gen_asm(ostream &o)
 			//o << "    movl " << arg << "(%rbp), %edi\n";
 			o << "    movl %eax, %edi\n";
 			o << "    and $0xFF, %edi\n";
-			o << "    call putchar\n";
+			o << "    call putchar@PLT\n";
 		}
 		else if (funcName == "getchar") {
 			//std::string arg = params[1];getchar_label
 			o <<  params[1] <<":\n";
-			o << "    call getchar\n";
+			o << "    call getchar@PLT\n";
 			o << "    cmp $10, %eax\n";
     		o << "    je " << params[1] << "\n";
 			//o << "    movl %eax, " << arg << "(%rbp)\n";
