@@ -1,0 +1,7 @@
+input.c: In function ‘factorielle’:
+input.c:5:12: error: ‘i’ undeclared (first use in this function)
+    5 |     while (i<= n) {
+      |            ^
+input.c:5:12: note: each undeclared identifier is reported only once for each function it appears in
+
+exit status: 1

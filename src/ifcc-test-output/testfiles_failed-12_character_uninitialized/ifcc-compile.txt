@@ -1,0 +1,11 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    char c;
+    return c; 
+}
+>>> Lexing terminé. Nombre total de tokens : 13
+line 2:9 no viable alternative at input 'char c'
+error: syntax error during parsing
+
+exit status: 1

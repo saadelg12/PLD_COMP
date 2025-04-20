@@ -1,0 +1,18 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    double x = 5.5;
+    {
+        double x = 2.5;
+        double y = 3.5;
+        x = x + y;
+    }
+    return x == 5.5;
+}
+>>> Lexing terminé. Nombre total de tokens : 35
+>>> Parsing terminé sans erreur.
+>>> Visite de la table des symboles OK.
+# Avertissement : Fonction sans `return` !
+>>> Fin de la génération assembleur.
+
+exit status: 0

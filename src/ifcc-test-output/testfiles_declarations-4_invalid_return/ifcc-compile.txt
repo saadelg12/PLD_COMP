@@ -1,0 +1,17 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+// int main() {
+//     return "hello";  // Erreur : return d'une chaîne au lieu d'un entier
+// }
+
+line 2:14 token recognition error at: '"'
+line 2:20 token recognition error at: '"'
+line 2:34 token recognition error at: ':'
+line 2:44 token recognition error at: ''un'
+line 2:52 token recognition error at: 'î'
+line 2:65 token recognition error at: ''un'
+>>> Lexing terminé. Nombre total de tokens : 28
+line 1:0 mismatched input '/' expecting TYPE
+error: syntax error during parsing
+
+exit status: 1

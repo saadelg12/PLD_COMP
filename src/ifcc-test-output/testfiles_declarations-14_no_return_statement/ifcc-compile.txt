@@ -1,0 +1,13 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    int x;
+    x = 10;
+}
+
+>>> Lexing terminé. Nombre total de tokens : 14
+>>> Parsing terminé sans erreur.
+# Avertissement : Fonction sans `return` !
+Erreur : Main 'main' sans `return` !
+
+exit status: 1

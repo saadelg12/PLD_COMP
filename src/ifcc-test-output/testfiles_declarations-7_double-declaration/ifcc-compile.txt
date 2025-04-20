@@ -1,0 +1,13 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+ int main() {
+    int b;
+    int b; 
+    return 0;
+}
+
+>>> Lexing terminé. Nombre total de tokens : 16
+>>> Parsing terminé sans erreur.
+Erreur : Variable 'b' déjà déclarée dans ce scope !
+
+exit status: 1

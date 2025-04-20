@@ -1,0 +1,12 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    return ('A' > 'B') ? 'A' : 'B';
+}
+line 2:23 token recognition error at: '?'
+line 2:29 token recognition error at: ':'
+>>> Lexing terminé. Nombre total de tokens : 16
+line 2:25 mismatched input ''A'' expecting ';'
+error: syntax error during parsing
+
+exit status: 1

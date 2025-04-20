@@ -1,0 +1,18 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    int a;
+    a 10;  // ❌ Erreur : Il manque un `=`
+    return a;
+}
+
+line 3:14 token recognition error at: '❌'
+line 3:23 token recognition error at: ':'
+line 3:38 token recognition error at: '`'
+line 3:40 token recognition error at: '`'
+>>> Lexing terminé. Nombre total de tokens : 23
+line 3:6 no viable alternative at input 'a 10'
+line 4:4 extraneous input 'return' expecting {'(', '!', '-', ID, CONST, CHAR}
+error: syntax error during parsing
+
+exit status: 1

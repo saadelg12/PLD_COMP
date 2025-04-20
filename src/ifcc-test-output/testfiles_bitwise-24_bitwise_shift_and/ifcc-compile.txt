@@ -1,0 +1,8 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+
+>>> Lexing terminé. Nombre total de tokens : 1
+line 1:0 mismatched input '<EOF>' expecting TYPE
+error: syntax error during parsing
+
+exit status: 1

@@ -1,0 +1,18 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    int a = 10;
+    int b = 5;
+    int c = 3;
+    
+    int result = a & b | c;
+    
+    return result;
+}
+>>> Lexing terminé. Nombre total de tokens : 34
+>>> Parsing terminé sans erreur.
+>>> Visite de la table des symboles OK.
+# Avertissement : Fonction sans `return` !
+>>> Fin de la génération assembleur.
+
+exit status: 0

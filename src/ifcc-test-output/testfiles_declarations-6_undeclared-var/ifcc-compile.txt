@@ -1,0 +1,12 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    a = 10;
+    return a;
+}
+
+>>> Lexing terminé. Nombre total de tokens : 14
+>>> Parsing terminé sans erreur.
+Erreur : Variable 'a' utilisée sans être déclarée !
+
+exit status: 1

@@ -1,0 +1,14 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int main() {
+    int a;
+    int b;
+    int c;
+    a = 3 = c;
+    return a;
+}
+>>> Lexing terminé. Nombre total de tokens : 25
+line 5:10 mismatched input '=' expecting ';'
+error: syntax error during parsing
+
+exit status: 1

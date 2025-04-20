@@ -1,0 +1,7 @@
+input.c: In function ‘main’:
+input.c:3:6: error: expected ‘;’ before numeric constant
+    3 |     a 10;  // ❌ Erreur : Il manque un `=`
+      |      ^~~
+      |      ;
+
+exit status: 1

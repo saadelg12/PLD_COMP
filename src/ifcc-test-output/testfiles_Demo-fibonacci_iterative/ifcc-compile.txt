@@ -1,0 +1,30 @@
+>>> ifcc démarre avec 2 argument(s)
+>>> Contenu du fichier lu :
+int fibonacci(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    int a = 0;
+    int b = 1;
+    int i = 2;
+    int fib = 0;
+    while (i <= n) {
+        fib = a + b;
+        a = b;
+        b = fib;
+        i = i + 1;
+    }
+    return fib;
+}
+
+int main() {
+    int num = 10;
+    return fibonacci(num); 
+}
+>>> Lexing terminé. Nombre total de tokens : 88
+>>> Parsing terminé sans erreur.
+>>> Visite de la table des symboles OK.
+# Avertissement : Fonction sans `return` !
+>>> Fin de la génération assembleur.
+
+exit status: 0
