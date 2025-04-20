@@ -4,11 +4,14 @@
 #include <iostream>
 #include "Type.h"
 
+
+// Symbol : struct pour représenter une variable dans la table des symboles
+// (nom, offset, type)
 typedef struct {
-    std::string symbolName;
-    int symbolOffset;
-    Type symbolType;
-}Symbol;
+    std::string symbolName; // Nom de la variable
+    int symbolOffset; // Offset de la variable dans la pile
+    Type symbolType; // Type de la variable (INT, DOUBLE, etc.)
+}Symbol; 
 
 
 

@@ -453,3 +453,4 @@ void IRInstr::gen_asm_arm(std::ostream &o)
 	}
 	}
 }
+// ---------- FIN ASSEMBLEUR POUR IRInstr ----------

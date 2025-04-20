@@ -1,4 +1,4 @@
-/usr/bin/ld: warning: /tmp/ccE0rjNo.o: missing .note.GNU-stack section implies executable stack
+/usr/bin/ld: warning: /tmp/ccH3dVhL.o: missing .note.GNU-stack section implies executable stack
 /usr/bin/ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
 
 exit status: 0
